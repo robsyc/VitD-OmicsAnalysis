@@ -29,22 +29,21 @@ RNA microarray
 - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4030167/  
 
 **Download links:**
+RNA microarray
+
+- https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-GEOD-22523?query=vitamin%20D
+
+RNA seq
+
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69303
 
 ChIP seq
 
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE22484
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89431
 
-RNA seq
-
-- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69303
-
-RNA microarray
-
-- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE5145
-
 ```{r}
-table_general_info <- rbind(c("GSE5145", "GSE89431", "GSE89431", "GSE69303"), c(6, 16, 39, 2), c(6, 16, 6, 2))
+table_general_info <- rbind(c("E-GEOD-22523", "GSE89431", "GSE89431", "GSE69303"), c(8, 16, 39, 2), c(8, 16, 6, 2))
 
 colnames(table_general_info) <- c("Microarray Data", "ChIPseq Data", "ChIPseq Data", "RNAseq Data")
 
@@ -52,42 +51,46 @@ rownames(table_general_info) <- c("Accesion ID", "Number of Samples (original)",
 
 table_general_info
 ```
+
 # Microarray Data
 ## General info
-This dataset (GSE5145) was generated in 2007 and aimed to identify the genes regulated by Vit D in primary bronchial smooth muscle cells. Cells were treated for 24 hours with 100 nM of Vit D3. The experiment was done in triplicates (a total of 6 samples were analyzed). All samples of this study were used for our data analysis.
+This dataset (E-GEOD-22523) was generated in 2010 and aimed to identify genes regulated by Vit D in B cells. A gene expression microarray analysis in HVDRR EBV-transformed B-cells and control cells was performed in the presence or absence of vitamin D. All samples of this study were used for our data analysis.
 
-**Microarray type:** Affymetrix Human Genome U133 Plus 2.0 Array [HG-U133_Plus_2]
+**Microarray type:** Affymetrix Human Gene 1.0 ST Array [HuGene-1_0-st]
 
 ## Intensity values
 Load libraries
 ```{r}
 library(affy)
-library(affycoretools)
 library(oligo)
 library(arrayQualityMetrics)
 library(ArrayExpress)
 library(limma)
 library(siggenes)
-library(hgu133plus2.db)
 ```
 
 Load the data
 ```{r}
-id <- "GSE5145"
+id <- "E-GEOD-22523"
 exonCELs <- list.celfiles("./data/microarray/")
-affyRaw <- read.celfiles(paste(rep("./data/microarray/", length(exonCELs)), exonCELs, sep = ""))
+arrayRaw <- read.celfiles(paste(rep("./data/microarray/", length(exonCELs)), exonCELs, sep = ""))
 ```
+The first 4 `.CEL` files contain the data for the hereditary vitamin D-resistant rickets (HVDRR) cells, of which the first two are biological replicates and the last two were treated with Vit D. The last 4 `.CEL` files contain the data for the Wild-type (WT) cell, again, of which the first two are biological replicates and the last two were treated with Vit D.
 
-Get dimensions and general overview of the data. The first three `.CEL` files are the Vit D deficient samples, the last three are the control samples.
+
+Get dimensions and general overview of the data. 
 ```{r}
-dim(exprs(affyRaw))
-head(exprs(affyRaw))
+dim(exprs(arrayRaw))
+head(exprs(arrayRaw))
 ```
 
 ## Annotation
 We will be investigating differential expression between colon Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation (so far).
 
-The annotation was provided through a `.soft` file (https://warwick.ac.uk/fac/sci/moac/people/students/peter_cock/r/geo/)
+```{r}
+sdrf <- read.delim("./data/microarray/E-GEOD-22523.sdrf.txt")
+print(sdrf[, c("Source.Name", "Comment..Sample_source_name.", "Array.Design.REF")])
+```
 
 # ChIPseq Data
 
