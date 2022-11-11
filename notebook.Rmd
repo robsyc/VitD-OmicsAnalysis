@@ -1,0 +1,59 @@
+---
+title: "VitD-OmicsAnalysis"
+author: "Robbe & Simon"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Introduction
+## Project Overview
+Group number: 11
+Group memebers: Robbe Claeys & Simon Bil  
+
+**Research question:** An omics-wide analysis of Vitamin D difieciency.
+
+## Data Overview
+**Paper links:**
+
+ChIP seq
+
+- https://pubmed.ncbi.nlm.nih.gov/25667505/
+- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2945184/#ack-1title
+
+ChIP & RNA seq
+
+- https://www.nature.com/articles/s41598-021-86032-5
+
+RNA microarray
+
+- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4030167/  
+
+**Download links:**
+
+ChIP seq
+
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE22484
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89431
+
+RNA seq
+
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69303
+
+RNA microarray
+
+- coding: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE5145
+- non-coding: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE23814
+
+```{r}
+table_general_info <- rbind(c("GSE22484", "GSE89431", "GSE69303", "GSE5145", "GSE23814"), c(14, 16, 39, 2, 0), c(14, 16, 6, 2, 0))
+colnames(table_general_info) <- c("ChIPseq Data", "ChIPseq Data", "RNAseq Data", "Microarray c", "Microarray nc")
+rownames(table_general_info) <- c("Accesion ID", "Number of Samples (original)", "Number of Samples (analysed)")
+
+table_general_info
+```
+
+# ChIPseq Data
+
+# RNAseq Data
+
+# Microarray Data
