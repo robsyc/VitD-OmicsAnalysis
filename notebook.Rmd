@@ -41,19 +41,36 @@ RNA seq
 
 RNA microarray
 
-- coding: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE5145
-- non-coding: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE23814
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE5145
 
 ```{r}
-table_general_info <- rbind(c("GSE22484", "GSE89431", "GSE69303", "GSE5145", "GSE23814"), c(14, 16, 39, 2, 0), c(14, 16, 6, 2, 0))
-colnames(table_general_info) <- c("ChIPseq Data", "ChIPseq Data", "RNAseq Data", "Microarray c", "Microarray nc")
+table_general_info <- rbind(c("GSE5145", "GSE89431", "GSE89431", "GSE69303"), c(6, 16, 39, 2), c(6, 16, 6, 2))
+
+colnames(table_general_info) <- c("Microarray Data", "ChIPseq Data", "ChIPseq Data", "RNAseq Data")
+
 rownames(table_general_info) <- c("Accesion ID", "Number of Samples (original)", "Number of Samples (analysed)")
 
 table_general_info
 ```
+# Microarray Data
+## General info
+This dataset (GSE5145) was generated in 2007 and aimed to identify the genes regulated by Vit D in primary bronchial smooth muscle cells. Cells were treated for 24 hours with 100 nM of Vit D3. The experiment was done in triplicates (a total of 6 samples were analyzed). All samples of this study were used for our data analysis.
+
+**Microarray type:** Affymetrix Human Genome U133 Plus 2.0 Array [HG-U133_Plus_2]
+
+## Intensity values
+Load libraries:
+```{r}
+library(affy)
+```
+
+```{r}
+id <- "GSE5145"
+exonCELs <- list.celfiles("./data/microarray/")
+```
+
 
 # ChIPseq Data
 
 # RNAseq Data
 
-# Microarray Data
