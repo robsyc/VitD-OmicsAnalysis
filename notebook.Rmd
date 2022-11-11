@@ -59,16 +59,35 @@ This dataset (GSE5145) was generated in 2007 and aimed to identify the genes reg
 **Microarray type:** Affymetrix Human Genome U133 Plus 2.0 Array [HG-U133_Plus_2]
 
 ## Intensity values
-Load libraries:
+Load libraries
 ```{r}
 library(affy)
+library(affycoretools)
+library(oligo)
+library(arrayQualityMetrics)
+library(ArrayExpress)
+library(limma)
+library(siggenes)
+library(hgu133plus2.db)
 ```
 
+Load the data
 ```{r}
 id <- "GSE5145"
 exonCELs <- list.celfiles("./data/microarray/")
+affyRaw <- read.celfiles(paste(rep("./data/microarray/", length(exonCELs)), exonCELs, sep = ""))
 ```
 
+Get dimensions and general overview of the data. The first three `.CEL` files are the Vit D deficient samples, the last three are the control samples.
+```{r}
+dim(exprs(affyRaw))
+head(exprs(affyRaw))
+```
+
+## Annotation
+We will be investigating differential expression between colon Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation (so far).
+
+The annotation was provided through a `.soft` file (https://warwick.ac.uk/fac/sci/moac/people/students/peter_cock/r/geo/)
 
 # ChIPseq Data
 
