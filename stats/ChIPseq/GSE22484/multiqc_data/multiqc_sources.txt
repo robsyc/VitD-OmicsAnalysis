@@ -1,0 +1,11 @@
+Module	Section	Sample Name	Source
+FastQC	all_sections	SRR058460	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058460_fastqc.zip
+FastQC	all_sections	SRR058469	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058469_fastqc.zip
+FastQC	all_sections	SRR058467	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058467_fastqc.zip
+FastQC	all_sections	SRR058463	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058463_fastqc.zip
+FastQC	all_sections	SRR058462	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058462_fastqc.zip
+FastQC	all_sections	SRR058464	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058464_fastqc.zip
+FastQC	all_sections	SRR058461	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058461_fastqc.zip
+FastQC	all_sections	SRR058465	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058465_fastqc.zip
+FastQC	all_sections	SRR058466	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058466_fastqc.zip
+FastQC	all_sections	SRR058468	/kyukon/data/gent/vo/000/gvo00095/Courses/AHTA/Group11/fastqc/SRR058468_fastqc.zip

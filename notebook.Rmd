@@ -94,58 +94,48 @@ print(sdrf[, c("Source.Name", "Comment..Sample_source_name.", "Array.Design.REF"
 
 # ChIPseq Data - GSE89431
 
-
 ## General info
-
-
+This dataset (GSE89431) was generated in 2017 and aimed to identify genomic locations bound by the vitamin D receptor (VDR).
+ChIP-seq for the vitamin D receptor (VDR) was performed in THP-1 cells after stimulation with the natural VDR ligand 1,25-dihydroxyvitamin D3 (1,25(OH)2D3) or with vehicle for 2 or 24h before ChIP assay.
 
 ## Quality control on fastQ files
 
-Add the multiqc report using `htmltools::includeHTML`. Hint: you can remove the navigation bar on the left by opening the html file > closing the bar > saving the html file. This will remove the indentation in your final html file. In case you start from count data, we still ask you to download (a representative part) of the fastq data to obtain a first impression of the data quality.
-
-```{r, echo=FALSE}
-
+```{r, echo=FALSE, results='asis'}
+htmltools::includeHTML("./stats/ChIPseq/GSE89431/multiqc_report.html")
 ```
 
 ## Mapping statistics
 
-When starting from the bam files, provide some mapping statistics if available (these can typically be found in the paper for which the data was originally published). If you performed the mapping yourself and saved your kallisto output as a log file, mapping statistics are typically included in your multiqc output (and can be displayed under the previous section).
+> We tried to perform mapping ourselves, but failed at a certain point.
+> For this reason we did not have time to finish peak data and annotation on the ChIPseq data.
 
-## Peak data
-
-Read in your peak data (output macs2) and display the head and dimensions of your data object.
-
-```{r}
-
-```
-
-## Annotation
-
-Provide basic sample annotation, including the phenotype of interest and relevant other features (e.g. confounders). Note that this statement is not final: if during analysis you would drop or add a confounder or comparison, this is no problem. Just try do clearly define the initial goal of your analysis.
-
-
-
-```{r}
-
-
-```
 
 # ChIPseq Data - GSE22484
+## General info
+This dataset (GSE22484) was generated in 2010 and aimed to identify the genomic locations bound by the vitamin D receptor (VDR) in two lymphoblastoid cell lines before and after calcitriol (active form of vitamin D) treatment for 36 hours.
 
+
+## Quality control
+
+```{r, echo=FALSE, results='asis'}
+htmltools::includeHTML("./stats/ChIPseq/GSE22484/multiqc_report.html")
+```
+
+## Mapping statistics
+
+> We tried to perform mapping ourselves, but failed at a certain point.
+> For this reason we did not have time to finish peak data and annotation on the ChIPseq data.
 
 # RNAseq Data - GSE69284
 ## General info
 This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5-24 h. This study was performed on 18 samples (in trireplicates), 2 were used for our data analysis (1 case and 1 control).
 
-Read length: 51bp  
-Single/paired end sequencing: (single end sequencing)  
+Read length: 51bp
+Single/paired end sequencing: (single end sequencing)
 Platform used: Illumina Genome Analyzer II
 
 ## Quality control
 ```{r, echo = FALSE, results='asis'}
 htmltools::includeHTML("./stats/RNAseq/multiqc/multiqc_report.html")
 ```
-
-
-# ChIPseq Data
 
