@@ -35,7 +35,7 @@ RNA microarray
 
 RNA seq
 
-- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69303
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69284
 
 ChIP seq
 
@@ -43,9 +43,9 @@ ChIP seq
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89431
 
 ```{r}
-table_general_info <- rbind(c("E-GEOD-22523", "GSE89431", "GSE89431", "GSE69303"), c(8, 16, 39, 2), c(8, 16, 6, 2))
+table_general_info <- rbind(c("E-GEOD-22523", "GSE69284", "GSE89431", "GSE89431"), c(8, 18, 39, 2), c(8, 2, 6, 2))
 
-colnames(table_general_info) <- c("Microarray Data", "ChIPseq Data", "ChIPseq Data", "RNAseq Data")
+colnames(table_general_info) <- c("Microarray Data", "RNAseq Data", "ChIPseq Data", "ChIPseq Data")
 
 rownames(table_general_info) <- c("Accesion ID", "Number of Samples (original)", "Number of Samples (analysed)")
 
@@ -54,13 +54,13 @@ table_general_info
 
 # Microarray Data
 ## General info
-This dataset (E-GEOD-22523) was generated in 2010 and aimed to identify genes regulated by Vit D in B cells. A gene expression microarray analysis in HVDRR EBV-transformed B-cells and control cells was performed in the presence or absence of vitamin D. All samples of this study were used for our data analysis.
+This dataset (E-GEOD-22523) was generated in 2010 and aimed to identify genes regulated by Vit D in B cells. A gene expression microarray analysis in HVDRR EBV-transformed B-cells and control cells was performed in the presence or absence of vitamin D. This study was performed on 8 samples (4 cases & 4 controls), all were used for our data analysis.
 
 **Microarray type:** Affymetrix Human Gene 1.0 ST Array [HuGene-1_0-st]
 
 ## Intensity values
 Load libraries
-```{r}
+```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
 library(affy)
 library(oligo)
 library(arrayQualityMetrics)
@@ -70,7 +70,7 @@ library(siggenes)
 ```
 
 Load the data
-```{r}
+```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
 id <- "E-GEOD-22523"
 exonCELs <- list.celfiles("./data/microarray/")
 arrayRaw <- read.celfiles(paste(rep("./data/microarray/", length(exonCELs)), exonCELs, sep = ""))
@@ -92,7 +92,19 @@ sdrf <- read.delim("./data/microarray/E-GEOD-22523.sdrf.txt")
 print(sdrf[, c("Source.Name", "Comment..Sample_source_name.", "Array.Design.REF")])
 ```
 
-# ChIPseq Data
-
 # RNAseq Data
+## General info
+This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5-24 h. This study was performed on 18 samples (in trireplicates), 2 were used for our data analysis (1 case and 1 control).
+
+Read length: 51bp  
+Single/paired end sequencing: (single end sequencing)  
+Platform used: Illumina Genome Analyzer II
+
+## Quality control
+```{r, echo = FALSE, results='asis'}
+htmltools::includeHTML("./stats/RNAseq/multiqc/multiqc_report.html")
+```
+
+
+# ChIPseq Data
 
