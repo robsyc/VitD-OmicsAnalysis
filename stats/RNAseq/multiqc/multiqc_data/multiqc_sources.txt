@@ -1,0 +1,5 @@
+Module	Section	Sample Name	Source
+FastQC	all_sections	SRR2042588	/home/robbe/Desktop/ghSchool/VitD-OmicsAnalysis/data/RNAseq/SRR2042588_fastqc.zip
+FastQC	all_sections	SRR2042589	/home/robbe/Desktop/ghSchool/VitD-OmicsAnalysis/data/RNAseq/SRR2042589_fastqc.zip
+FastQC	all_sections	SRR2042595	/home/robbe/Desktop/ghSchool/VitD-OmicsAnalysis/data/RNAseq/SRR2042595_fastqc.zip
+FastQC	all_sections	SRR2042594	/home/robbe/Desktop/ghSchool/VitD-OmicsAnalysis/data/RNAseq/SRR2042594_fastqc.zip

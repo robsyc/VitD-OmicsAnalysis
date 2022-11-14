@@ -85,7 +85,7 @@ head(exprs(arrayRaw))
 ```
 
 ## Annotation
-We will be investigating differential expression between colon Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation (so far).
+We will be investigating differential expression between . No other confounding factors are present in the sample annotation (so far).
 
 ```{r}
 sdrf <- read.delim("./data/microarray/E-GEOD-22523.sdrf.txt")
