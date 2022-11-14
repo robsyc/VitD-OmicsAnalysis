@@ -92,7 +92,43 @@ sdrf <- read.delim("./data/microarray/E-GEOD-22523.sdrf.txt")
 print(sdrf[, c("Source.Name", "Comment..Sample_source_name.", "Array.Design.REF")])
 ```
 
-# ChIPseq Data
+# ChIPseq Data - GSE89431
+
+
+## General info
+
+
+
+## Quality control on fastQ files
+
+Add the multiqc report using `htmltools::includeHTML`. Hint: you can remove the navigation bar on the left by opening the html file > closing the bar > saving the html file. This will remove the indentation in your final html file. In case you start from count data, we still ask you to download (a representative part) of the fastq data to obtain a first impression of the data quality.
+
+```{r, echo=FALSE}
+
+```
+
+## Mapping statistics
+
+When starting from the bam files, provide some mapping statistics if available (these can typically be found in the paper for which the data was originally published). If you performed the mapping yourself and saved your kallisto output as a log file, mapping statistics are typically included in your multiqc output (and can be displayed under the previous section).
+
+## Peak data
+
+Read in your peak data (output macs2) and display the head and dimensions of your data object.
+
+```{r}
+
+```
+
+## Annotation
+
+Provide basic sample annotation, including the phenotype of interest and relevant other features (e.g. confounders). Note that this statement is not final: if during analysis you would drop or add a confounder or comparison, this is no problem. Just try do clearly define the initial goal of your analysis.
+
+
+
+```{r}
+
+
+```
 
 # RNAseq Data
 
