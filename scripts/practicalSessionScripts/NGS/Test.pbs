@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:30:00
+#PBS -l mem=2gb
+
+echo "hello world!" # prints string
+cat Test.txt	    # concatenate: prints file(s) contest

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:30:00
+#PBS -l mem=2gb
+
+# "# command" was used as a placeholder where a line of code should be inserted
+
+# Load the necessary modules
+# no modules required
+
+# Change to the directory you are working in 
+cd /user/gent/439/vsc43966/Prac_3_AHTA/
+
+# Download reference genome & genome annotation
+wget ftp://ftp.ensemblgenomes.org/pub/release-37/plants/fasta/arabidopsis_thaliana/dna/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa.gz
+wget ftp://ftp.ensemblgenomes.org/pub/release-37/plants/gtf/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.37.gtf.gz
+
+# Unzip
+pigz -d *.gz
+
+

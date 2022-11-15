@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+#PBS -l nodes=1:ppn=4
+#PBS -l walltime=06:00:00
+#PBS -l mem=16gb
+
+# "# command" was used as a placeholder where a line of code should be inserted
+
+# Load the necessary modules
+module load MACS2/2.2.7.1-foss-2021b
+module load Bowtie2/2.4.4-GCC-11.2.0
+module load SAMtools/1.15-GCC-11.2.0
+
+# Change to the directory you are working in 
+cd /kyukon/data/gent/vo/000/gvo00095/vsc43966/Prac_5_AHTA/
+
+# Download data
+wget https://www.encodeproject.org/files/ENCFF000VHM/@@download/ENCFF000VHM.fastq.gz
+wget https://www.encodeproject.org/files/ENCFF000VFU/@@download/ENCFF000VFU.fastq.gz
+wget http://ftp.ensembl.org/pub/release-104/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
+
+# DO NOT FORGET TO PERFORM QC ON YOUR DATA!
+
+# Unzip
+pigz -d *.gz
+
+# Index 
+bowtie2-build --threads 4 Homo_sapiens.GRCh38.dna.toplevel.fa Homo_sapiens
+
+# Aligning 
+bowtie2 -p 4 -x Homo_sapiens -U ENCFF000VFU.fastq -S H3k27me3.sam
+bowtie2 -p 4 -x Homo_sapiens -U ENCFF000VHM.fastq -S Mcf7Input.sam
+
+# Conversion to bam 
+samtools view -S -b H3k27me3.sam > H3k27me3.bam
+samtools view -S -b Mcf7Input.sam > Mcf7Input.bam
+
+# Run MACS2 
+macs2 callpeak -t H3k27me3.bam -c Mcf7Input.bam --broad -n H3k27me3 -g hs --broad-cutoff 0.1
+
+# Remove fastq files
+rm ENCFF000VHM.fastq
+rm ENCFF000VFU.fastq
+rm Homo_sapiens.GRCh38.dna.toplevel.fa
