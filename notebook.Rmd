@@ -29,6 +29,7 @@ RNA microarray
 - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4030167/  
 
 **Download links:**
+
 RNA microarray
 
 - https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-GEOD-22523?query=vitamin%20D
@@ -43,7 +44,7 @@ ChIP seq
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89431
 
 ```{r}
-table_general_info <- rbind(c("E-GEOD-22523", "GSE69284", "GSE89431", "GSE89431"), c(8, 18, 39, 2), c(8, 2, 6, 2))
+table_general_info <- rbind(c("E-GEOD-22523", "GSE69284", "GSE89431", "GSE89431"), c(8, 18, 39, 2), c(8, 6, 6, 2))
 
 colnames(table_general_info) <- c("Microarray Data", "RNAseq Data", "ChIPseq Data", "ChIPseq Data")
 
@@ -52,7 +53,7 @@ rownames(table_general_info) <- c("Accesion ID", "Number of Samples (original)",
 table_general_info
 ```
 
-# Microarray Data
+# Microarray Data - GSE22523
 ## General info
 This dataset (E-GEOD-22523) was generated in 2010 and aimed to identify genes regulated by Vit D in B cells. A gene expression microarray analysis in HVDRR EBV-transformed B-cells and control cells was performed in the presence or absence of vitamin D. This study was performed on 8 samples (4 cases & 4 controls), all were used for our data analysis.
 
@@ -77,7 +78,6 @@ arrayRaw <- read.celfiles(paste(rep("./data/microarray/", length(exonCELs)), exo
 ```
 The first 4 `.CEL` files contain the data for the hereditary vitamin D-resistant rickets (HVDRR) cells, of which the first two are biological replicates and the last two were treated with Vit D. The last 4 `.CEL` files contain the data for the Wild-type (WT) cell, again, of which the first two are biological replicates and the last two were treated with Vit D.
 
-
 Get dimensions and general overview of the data. 
 ```{r}
 dim(exprs(arrayRaw))
@@ -88,7 +88,7 @@ head(exprs(arrayRaw))
 We will be investigating differential expression between . No other confounding factors are present in the sample annotation (so far).
 
 ```{r}
-sdrf <- read.delim("./data/microarray/E-GEOD-22523.sdrf.txt")
+sdrf <- read.delim("./data/annotation/GSE22523/E-GEOD-22523.sdrf.txt")
 print(sdrf[, c("Source.Name", "Comment..Sample_source_name.", "Array.Design.REF")])
 ```
 
@@ -100,7 +100,7 @@ ChIP-seq for the vitamin D receptor (VDR) was performed in THP-1 cells after sti
 
 - Read length: 51bp
 - Single/paired end sequencing: single end sequencing
-- Platform used: Illumina HiSeq 2000 (Homo sapiens)
+- Platform used: Illumina HiSeq 2000
 
 ## Quality control on fastQ files
 
@@ -148,20 +148,38 @@ print(gse22484_annot[c("Run", "Treatment", "SAMPLE_TYPE")])
 
 # RNAseq Data - GSE69284
 ## General info
-This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5-24 h. This study was performed on 18 samples (in trireplicates), 2 were used for our data analysis (1 case and 1 control).
+This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), 6 were used for our data analysis (1 replicate at all 3 treatments).
 
 - Read length: 51bp
-- Single/paired end sequencing: (single end sequencing)
-- Platform used: Illumina Genome Analyzer II
+- Single/paired end sequencing: single end sequencing
+- Platform used: Illumina NextSeq500
 
 ## Quality control
+A MultiQC quality control was performed and mapping statistics are provided through the kallisto log output.
 ```{r, echo = FALSE, results='asis'}
-htmltools::includeHTML("./stats/RNAseq/multiqc/multiqc_report.html")
+htmltools::includeHTML("./stats/RNAseq/multiqc_report.html")
 ```
 
-## Annotation
-
+## Pseudo count table
 ```{r}
-gse69284_annot <- read.csv("./data/annotation/GSE69284/SraRunTable.txt")
-print(gse69284_annot[c("Run", "Treatment", "treatment_time")])
+library(tximport)
+
+# get file locations
+files <- list.files("./stats/RNAseq/kallisto")
+files <- files[grep("abundance.tsv", files)]
+samples <- unlist(strsplit(files,"_"))[c(1:length(files))*2-1]
+files <- paste(rep("./stats/RNAseq/kallisto",length(files)), files, sep="")
+names(files) <- samples
+
+# load RNAseq data
+txi <- tximport(files, type = "kallisto", tx2gene = tx2geneGtf)
+```
+
+
+## Annotation
+General sample annotation file was provided.  
+A case-control study was performed with 3 different treatment groups (2.5, 4, and 24 hour exposure) in the THP-1 cell line.
+```{r}
+RNAseq_annot <- read.csv("./data/annotation/GSE69284/SraRunTable.txt")
+print(RNAseq_annot[c("Run", "Treatment", "treatment_time")])
 ```

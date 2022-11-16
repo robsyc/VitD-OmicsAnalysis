@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=02:00:00
+#PBS -l mem=8gb
+
+# Change to the directory you are working in 
+cd $VSC_DATA_VO/Courses/AHTA/Group11/human_ref
+
+# Download reference genome (fasta) & genome annotation (gtf)
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_42/GRCh38.p13.genome.fa.gz
+echo "reference genome downloaded"
+
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_42/gencode.v42.chr_patch_hapl_scaff.annotation.gtf.gz
+echo "genome annotation downloaded"
+
+# Unzip
+pigz -d *.gz

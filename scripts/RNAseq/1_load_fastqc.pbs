@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+#PBS -l nodes=1:ppn=8
+#PBS -l walltime=02:00:00
+#PBS -l mem=2gb
+
+# "# command" was used as a placeholder where a line of code should be inserted
+
+# Load the necessary modules
+module load FastQC/0.11.9-Java-11
+module load parallel-fastq-dump/0.6.6-GCCcore-9.3.0-SRA-Toolkit-3.0.0-Python-3.8.2
+
+# change current directory
+cd $VSC_DATA_VO/Courses/AHTA/Group11/RNAseq
+
+# Make a directory to store fastqc output
+mkdir fastqc
+
+# For loop over samples used (replicates A only)
+for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585
+do 
+	# Echo the ID you are processing
+	echo $ID
+	
+	# Load the reads for the ID (--sra-id $ID) you are processing using 8 cores (--threads 8)
+	parallel-fastq-dump --sra-id $ID --threads 8
+	
+	# Perform QC with fastqc on the raw reads outputting everything in the fastqc folder (--outdir fastqc)
+	fastqc --outdir fastqc $ID.fastq
+	
+	# Remove fastq files to reduce disk usage
+	rm $ID.fastq
+done
+
+echo "loading script finished"
