@@ -25,7 +25,7 @@ kallisto index -i humanIndex ../human_ref/Human_PseudoTranscriptome.fa
 mkdir kallisto_logs
 
 # For loop over all samples
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585
+for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596S RR2042597
 # This for loop will loop over the variables after "in" each time attributing the value SRRXXX as to $ID
 do 
 	# Echo the ID you are processing

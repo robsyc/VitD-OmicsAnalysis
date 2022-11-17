@@ -15,49 +15,50 @@ Group memebers: Robbe Claeys & Simon Bil
 ## Data Overview
 **Paper links:**
 
-ChIP seq
+RNA microarray
 
 - https://pubmed.ncbi.nlm.nih.gov/25667505/
-- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2945184/#ack-1title
+- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4030167/  
 
 ChIP & RNA seq
 
 - https://www.nature.com/articles/s41598-021-86032-5
 
-RNA microarray
-
-- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4030167/  
-
 **Download links:**
 
-RNA microarray
+RNA microarray (GSE5145)
 
-- https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-GEOD-22523?query=vitamin%20D
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE5145
 
-RNA seq
+RNA microarray (GSE22523)
+
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE22523
+
+RNA seq (GSE69284)
 
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69284
 
-ChIP seq
+ChIP seq (GSE89431)
 
-- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE22484
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89431
 
 ```{r}
-table_general_info <- rbind(c("E-GEOD-22523", "GSE69284", "GSE89431", "GSE89431"), c(8, 18, 39, 2), c(8, 6, 6, 2))
+table_general_info <- rbind(c("GSE5145", "GSE22523", "GSE69284", "GSE89431"), c(6, 8, 18, 39), c(6, 8, 18, 6))
 
-colnames(table_general_info) <- c("Microarray Data", "RNAseq Data", "ChIPseq Data", "ChIPseq Data")
+colnames(table_general_info) <- c("Microarray Data", "Microarray Data", "RNAseq Data", "ChIPseq Data")
 
 rownames(table_general_info) <- c("Accesion ID", "Number of Samples (original)", "Number of Samples (analysed)")
 
 table_general_info
 ```
 
-# Microarray Data - GSE22523
-## General info
-This dataset (E-GEOD-22523) was generated in 2010 and aimed to identify genes regulated by Vit D in B cells. A gene expression microarray analysis in HVDRR EBV-transformed B-cells and control cells was performed in the presence or absence of vitamin D. This study was performed on 8 samples (4 cases & 4 controls), all were used for our data analysis.
+---
 
-**Microarray type:** Affymetrix Human Gene 1.0 ST Array [HuGene-1_0-st]
+# Microarray Data - GSE5145
+## General info
+This dataset (GSE5145) was generated in 2007 and aimed to identify the genes regulated by Vit D in primary bronchial smooth muscle cells. Cells were treated for 24 hours with 100 nM of Vit D3. The experiment was done in triplicates (a total of 6 samples were analyzed). All samples of this study were used for our data analysis.
+
+**Microarray type:** Affymetrix Human Genome U133 Plus 2.0 Array [HG-U133_Plus_2]
 
 ## Intensity values
 Load libraries
@@ -68,19 +69,59 @@ library(arrayQualityMetrics)
 library(ArrayExpress)
 library(limma)
 library(siggenes)
+library(Biobase)
+library(GEOquery)
 ```
 
 Load the data
 ```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
-id <- "E-GEOD-22523"
-exonCELs <- list.celfiles("./data/microarray/")
-arrayRaw <- read.celfiles(paste(rep("./data/microarray/", length(exonCELs)), exonCELs, sep = ""))
+exonCELs <- list.celfiles("./data/microarray/GSE5145/")
+arrayRaw <- read.celfiles(paste(rep("./data/microarray/GSE5145/", length(exonCELs)), exonCELs, sep = ""))
 ```
+
+Get dimensions and general overview of the data. The first three `.CEL` files are the Vit D deficient samples, the last three are the control samples.
+```{r}
+dim(exprs(arrayRaw))
+head(exprs(arrayRaw))
+```
+
+Summarization of the array data.
+```{r}
+arrayRma = rma(arrayRaw)
+dim(exprs(arrayRma))
+head(exprs(arrayRma))
+```
+
+## Annotation
+We will be investigating differential expression between colon Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation.
 
 ```{r}
-sets = ArrayExpress(E-GEOD-22523
+annot <- getGEO(filename = "./data/microarray/GSE5145/GSE5145_family.soft")
+
+IDs <- annot@header$sample_id
+titles <- c()
+
+for (id in IDs) {
+  title <- annot@gsms[[id]]@header[["title"]]
+  titles <- append(titles, title)
+}
+data.frame(IDs, titles)
 ```
 
+---
+
+# Microarray Data - GSE22523
+## General info
+This dataset (E-GEOD-22523) was generated in 2010 and aimed to identify genes regulated by Vit D in B cells. A gene expression microarray analysis in HVDRR EBV-transformed B-cells and control cells was performed in the presence or absence of vitamin D. This study was performed on 8 samples (4 cases & 4 controls), all were used for our data analysis.
+
+**Microarray type:** Affymetrix Human Gene 1.0 ST Array [HuGene-1_0-st]
+
+## Intensity values
+Load the data
+```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
+exonCELs <- list.celfiles("./data/microarray/GSE22523/")
+arrayRaw <- read.celfiles(paste(rep("./data/microarray/GSE22523/", length(exonCELs)), exonCELs, sep = ""))
+```
 
 The first 4 `.CEL` files contain the data for the hereditary vitamin D-resistant rickets (HVDRR) cells, of which the first two are biological replicates and the last two were treated with Vit D. The last 4 `.CEL` files contain the data for the Wild-type (WT) cell, again, of which the first two are biological replicates and the last two were treated with Vit D.
 
@@ -90,75 +131,26 @@ dim(exprs(arrayRaw))
 head(exprs(arrayRaw))
 ```
 
+Summarization of the array data.
+```{r}
+arrayRma = rma(arrayRaw)
+dim(exprs(arrayRma))
+head(exprs(arrayRma))
+```
+
 ## Annotation
-+ add fact about genetic background of the cells (https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-GEOD-22523?query=vitamin%20D) under factors table
-We will be investigating differential expression between . No other confounding factors are present in the sample annotation (so far).
+We will be investigating differential expression between VitD treated & untreated cel cultures. Confounding factors: there are 4 wild-type and 4 HVDRR cells.
 
 ```{r}
-sdrf <- read.delim("./data/annotation/GSE22523/E-GEOD-22523.sdrf.txt")
-print(sdrf[, c("Source.Name", "Comment..Sample_source_name.", "Array.Design.REF")])
+annot <- read.delim("./data/annotation/GSE22523/E-GEOD-22523.sdrf.txt")
+print(annot[, c("Source.Name", "Comment..Sample_source_name.", "Characteristics.agent.", "Characteristics.individual.")])
 ```
 
-# ChIPseq Data - GSE89431
-
-## General info
-This dataset (GSE89431) was generated in 2017 and aimed to identify genomic locations bound by the vitamin D receptor (VDR).
-ChIP-seq for the vitamin D receptor (VDR) was performed in THP-1 cells after stimulation with the natural VDR ligand 1,25-dihydroxyvitamin D3 (1,25(OH)2D3) or with vehicle for 2 or 24h before ChIP assay.
-
-- Read length: 51bp
-- Single/paired end sequencing: single end sequencing
-- Platform used: Illumina HiSeq 2000
-
-## Quality control on fastQ files
-
-```{r, echo=FALSE, results='asis'}
-htmltools::includeHTML("./stats/ChIPseq/GSE89431/multiqc_report.html")
-```
-
-- Watch out bcause there are two samples with lots of reads (fastQC sequence counts)
-- time as a factor in the model -> discrete, not continuous
-
-## Mapping statistics
-
-> We tried to perform mapping ourselves, but failed at a certain point.
-> For this reason we did not have time to finish peak data and annotation on the ChIPseq data.
-
-## Annotation
-
-```{r}
-gse89431_annot <- read.csv("./data/annotation/GSE89431/SraRunTable.txt")
-print(gse89431_annot[c("Run", "Treatment", "Time")])
-```
-
-# ChIPseq Data - GSE22484
-## General info
-This dataset (GSE22484) was generated in 2010 and aimed to identify the genomic locations bound by the vitamin D receptor (VDR) in two lymphoblastoid cell lines before and after calcitriol (active form of vitamin D) treatment for 36 hours.
-
-- Read length: 36bp
-- Single/paired end sequencing: single end sequencing
-- Platform used: Illumina Genome Analyzer II (Homo sapiens)
-
-## Quality control
-
-```{r, echo=FALSE, results='asis'}
-htmltools::includeHTML("./stats/ChIPseq/GSE22484/multiqc_report.html")
-```
-
-## Mapping statistics
-
-> We tried to perform mapping ourselves, but failed at a certain point.
-> For this reason we did not have time to finish peak data and annotation on the ChIPseq data.
-
-## Annotation
-
-```{r,}
-gse22484_annot <- read.csv("./data/annotation/GSE22484/SraRunTable.txt")
-print(gse22484_annot[c("Run", "Treatment", "SAMPLE_TYPE")])
-```
+---
 
 # RNAseq Data - GSE69284
 ## General info
-This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), 6 were used for our data analysis (1 replicate at all 3 treatments).
+This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), all were used for our data analysis.
 
 Better to use all samples (all 18 and add time as factor)
 
@@ -177,11 +169,11 @@ htmltools::includeHTML("./stats/RNAseq/multiqc_report.html")
 library(tximport)
 
 # get file locations
-files <- list.files("./stats/RNAseq/kallisto")
-files <- files[grep("abundance.tsv", files)]
-samples <- unlist(strsplit(files,"_"))[c(1:length(files))*2-1]
-files <- paste(rep("./stats/RNAseq/kallisto",length(files)), files, sep="")
-names(files) <- samples
+#files <- list.files("./stats/RNAseq/kallisto")
+#files <- files[grep("abundance.tsv", files)]
+#samples <- unlist(strsplit(files,"_"))[c(1:length(files))*2-1]
+#files <- paste(rep("./stats/RNAseq/kallisto",length(files)), files, sep="")
+#names(files) <- samples
 
 # load RNAseq data
 #txi <- tximport(files, type = "kallisto", tx2gene = tx2geneGtf)
@@ -190,8 +182,42 @@ names(files) <- samples
 
 ## Annotation
 General sample annotation file was provided.  
-A case-control study was performed with 3 different treatment groups (2.5, 4, and 24 hour exposure) in the THP-1 cell line.
+A case-control study was performed with 3 different treatment groups (2.5, 4, and 24 hour exposure) in the THP-1 cell line. The treatment time will be added as a factor during statistical analysis.
 ```{r}
 RNAseq_annot <- read.csv("./data/annotation/GSE69284/SraRunTable.txt")
 print(RNAseq_annot[c("Run", "Treatment", "treatment_time")])
 ```
+
+---
+
+# ChIPseq Data - GSE89431
+
+## General info
+This dataset (GSE89431) was generated in 2017 and aimed to identify genomic locations bound by the vitamin D receptor (VDR).
+ChIP-seq for the vitamin D receptor (VDR) was performed in the monocytic THP-1 cells after stimulation with the natural VDR ligand 1,25-dihydroxyvitamin D3 (1,25(OH)2D3) or with vehicle for 2 or 24h before ChIP assay.
+
+- Read length: 51bp
+- Single/paired end sequencing: single end sequencing
+- Platform used: Illumina HiSeq 2000
+
+## Quality control on fastQ files
+
+```{r, echo=FALSE, results='asis'}
+htmltools::includeHTML("./stats/ChIPseq/multiqc_report.html")
+```
+
+- Watch out bcause there are two samples with lots of reads (fastQC sequence counts)
+- time as a factor in the model -> discrete, not continuous
+
+## Mapping statistics
+
+> We tried to perform mapping ourselves, but failed at a certain point.
+> For this reason we did not have time to finish peak data and annotation on the ChIPseq data.
+
+## Annotation
+
+```{r}
+gse89431_annot <- read.csv("./data/annotation/GSE89431/SraRunTable.txt")
+print(gse89431_annot[c("Run", "Treatment", "Time")])
+```
+
