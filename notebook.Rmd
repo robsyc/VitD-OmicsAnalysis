@@ -76,6 +76,12 @@ id <- "E-GEOD-22523"
 exonCELs <- list.celfiles("./data/microarray/")
 arrayRaw <- read.celfiles(paste(rep("./data/microarray/", length(exonCELs)), exonCELs, sep = ""))
 ```
+
+```{r}
+sets = ArrayExpress(E-GEOD-22523
+```
+
+
 The first 4 `.CEL` files contain the data for the hereditary vitamin D-resistant rickets (HVDRR) cells, of which the first two are biological replicates and the last two were treated with Vit D. The last 4 `.CEL` files contain the data for the Wild-type (WT) cell, again, of which the first two are biological replicates and the last two were treated with Vit D.
 
 Get dimensions and general overview of the data. 
@@ -85,6 +91,7 @@ head(exprs(arrayRaw))
 ```
 
 ## Annotation
++ add fact about genetic background of the cells (https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-GEOD-22523?query=vitamin%20D) under factors table
 We will be investigating differential expression between . No other confounding factors are present in the sample annotation (so far).
 
 ```{r}
@@ -107,6 +114,9 @@ ChIP-seq for the vitamin D receptor (VDR) was performed in THP-1 cells after sti
 ```{r, echo=FALSE, results='asis'}
 htmltools::includeHTML("./stats/ChIPseq/GSE89431/multiqc_report.html")
 ```
+
+- Watch out bcause there are two samples with lots of reads (fastQC sequence counts)
+- time as a factor in the model -> discrete, not continuous
 
 ## Mapping statistics
 
@@ -150,6 +160,8 @@ print(gse22484_annot[c("Run", "Treatment", "SAMPLE_TYPE")])
 ## General info
 This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), 6 were used for our data analysis (1 replicate at all 3 treatments).
 
+Better to use all samples (all 18 and add time as factor)
+
 - Read length: 51bp
 - Single/paired end sequencing: single end sequencing
 - Platform used: Illumina NextSeq500
@@ -172,7 +184,7 @@ files <- paste(rep("./stats/RNAseq/kallisto",length(files)), files, sep="")
 names(files) <- samples
 
 # load RNAseq data
-txi <- tximport(files, type = "kallisto", tx2gene = tx2geneGtf)
+#txi <- tximport(files, type = "kallisto", tx2gene = tx2geneGtf)
 ```
 
 
