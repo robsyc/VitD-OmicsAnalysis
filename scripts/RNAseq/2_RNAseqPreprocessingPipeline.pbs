@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 #PBS -l nodes=1:ppn=8
-#PBS -l walltime=01:30:00
-#PBS -l mem=8gb
+#PBS -l walltime=08:00:00
+#PBS -l mem=16gb
 
 # Load the necessary modules
 module load Trimmomatic/0.39-Java-11
@@ -15,42 +15,47 @@ module load TopHat/2.1.2-gompi-2020a
 # Change to the directory you are working in 
 cd $VSC_DATA_VO/Courses/AHTA/Group11/RNAseq
 
-# Create Pseudo Transcriptome
-gtf_to_fasta ../human_ref/gencode.v42.chr_patch_hapl_scaff.annotation.gtf ../human_ref/GRCh38.p13.genome.fa ../human_ref/Human_PseudoTranscriptome.fa
+# Make a directory to store fastqc output
+mkdir 2_fastqc
 
-# Create index
-kallisto index -i humanIndex ../human_ref/Human_PseudoTranscriptome.fa
+
+# Download pre-built human reference genome index & annotation file & reference
+wget https://github.com/pachterlab/kallisto-transcriptome-indices/releases/download/94/Homo_sapiens.GRCh38.cdna.all.release-94_k31.idx.gz
+wget https://ftp.ensembl.org/pub/release-108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.gtf.gz
+wget https://ftp.ensembl.org/pub/release-108/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
+# Unzip
+pigz -d *.gz
 
 # Make a directory to store kallisto logs
 mkdir kallisto_logs
 
 # For loop over all samples
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596S RR2042597
+for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596 SRR2042597
 # This for loop will loop over the variables after "in" each time attributing the value SRRXXX as to $ID
 do 
 	# Echo the ID you are processing
 	echo $ID
 	
-	# Load the first (-X 500000) 500,000 reads for the ID (--sra-id $ID) you are processing using 8 cores (--threads 8)
+	# Load the reads for the ID (--sra-id $ID) you are processing using 8 cores
 	parallel-fastq-dump --sra-id $ID --threads 8
 	
-	# Perform trimming based on the quality score (-phred33) with a sliding window (SLIDINGWINDOW:4:15) using 8 cores (-threads 8)
+	# Perform trimming based on the quality score (-phred33) with a sliding window (SLIDINGWINDOW:4:15) using 8 cores
 	# storing the results in $ID\_trimQuality.fastq
 	java -jar $EBROOTTRIMMOMATIC/trimmomatic-0.39.jar SE -threads 8 -phred33 $ID.fastq $ID\_trimQuality.fastq SLIDINGWINDOW:4:15
 	java -jar $EBROOTTRIMMOMATIC/trimmomatic-0.39.jar SE -threads 8 -phred33 $ID\_trimQuality.fastq $ID\_trimBoth.fastq ILLUMINACLIP:Adapters.fa:2:30:10
 	
 	# Perform QC with fastqc on the trimmed reads outputting everything in the fastqc folder (--outdir fastqc)
-	fastqc --outdir fastqc $ID\_trimQuality.fastq
-	fastqc --outdir fastqc $ID\_trimBoth.fastq
+	fastqc --outdir 2_fastqc $ID\_trimQuality.fastq
+	fastqc --outdir 2_fastqc $ID\_trimBoth.fastq
 	
 	# Make directory to output alignment results
 	mkdir $ID\_quant
 
 	# Pseudo-alignment using kallisto
-	kallisto quant -i humanIndex -o $ID\_quant -t 8 --single -l 100 -s 1 -g ../human_ref/gencode.v42.chr_patch_hapl_scaff.annotation.gtf $ID\_trimBoth.fastq &> kallisto_logs/$ID\_kallisto.log
+	kallisto quant -i Homo_sapiens.GRCh38.cdna.all.release-94_k31.idx -o $ID\_quant -t 8 --single -l 100 -s 1 -g Homo_sapiens.GRCh38.108.gtf $ID\_trimBoth.fastq &> kallisto_logs/$ID\_kallisto.log
 	
 	# Change numeric ids in kallisto output with gene IDs (this is more advanced unix coding)
-	grep ">" ../human_ref/GRCh38.p13.genome.fa | cut -d" " -f 2 > $ID\_quant/transcriptIDs.txt
+	grep ">" Homo_sapiens.GRCh38.dna.toplevel.fa | cut -d" " -f 2 > $ID\_quant/transcriptIDs.txt
 	awk '{OFS = "\t"} FNR==NR{a[NR+1]=$1;next}{if(FNR!=1){$1=a[FNR]}}1' $ID\_quant/transcriptIDs.txt $ID\_quant/abundance.tsv > $ID\_quant/abundance_bis.tsv
 	mv $ID\_quant/abundance_bis.tsv $ID\_quant/abundance.tsv
 	
@@ -60,10 +65,17 @@ do
 	rm $ID\_trimBoth.fastq
 done
 
+
+# remove reference files
+rm Homo_sapiens.GRCh38.cdna.all.release-94_k31.idx
+rm Homo_sapiens.GRCh38.108.gtf
+rm Homo_sapiens.GRCh38.dna.toplevel.fa
+
+
 # Make directory to output all alignment
 mkdir kallisto_quant
-# Put all kallisto output files in one directory (easier for downloading and downstream processing with Rstudio!)
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585
+# Put all kallisto output files in one directory
+for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596 SRR2042597
 do
 	mv $ID\_quant/abundance.h5 kallisto_quant/$ID\_abundance.h5
 	mv $ID\_quant/abundance.tsv kallisto_quant/$ID\_abundance.tsv
@@ -71,7 +83,7 @@ do
 	rm -r $ID\_quant
 done
 
-# Use multiqc to make an overview of all quality control and log files performed 
-# ("." option searches all files and subdirectories of the current working directory)
-multiqc .
 
+# Use multiqc to make an overview of all quality control and log files performed 
+mkdir 2_multiqc
+multiqc --outdir 2_multiqc .

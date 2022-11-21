@@ -14,34 +14,41 @@ module load Subread/2.0.3-GCC-9.3.0
 module load TopHat/2.1.2-gompi-2020a
 
 # Change to the directory you are working in 
-cd /user/gent/439/vsc43966/Prac_3_AHTA
+cd $VSC_DATA_VO/Courses/AHTA/Group11/RNAseq
+
+# Get resources
+wget https://ftp.ensembl.org/pub/release-108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.gtf.gz
+wget https://ftp.ensembl.org/pub/release-108/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
+# Unzip
+pigz -d *.gz
 
 # Create index STAR
 mkdir TAIR
-STAR --runThreadN 16 --runMode genomeGenerate --genomeDir TAIR --genomeSAindexNbases 12 --genomeFastaFiles ../human_ref/GRCh38.p13.genome.fa --sjdbGTFfile ../human_ref/gencode.v42.chr_patch_hapl_scaff.annotation.gtf
+STAR --runThreadN 16 --runMode genomeGenerate --genomeDir TAIR --genomeSAindexNbases 12 --genomeFastaFiles Homo_sapiens.GRCh38.dna.toplevel.fa --sjdbGTFfile Homo_sapiens.GRCh38.108.gtf
 
 # Make a directory to store STAR logs
 mkdir STAR_logs
+mkdir 3_fastqc
 
 # For loop over all samples
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585
+for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596 SRR2042597
 # This for loop will loop over the variables after "in" each time attributing the value SRRXXX as to $ID
 do 
 	# Echo the ID you are processing
 	echo $ID
 	
-	# Load the first (-X 500000) 500,000 reads for the ID (--sra-id $ID) you are processing using 8 cores (--threads 8)
+	# Load the reads for the ID (--sra-id $ID) you are processing using 8 cores
 	parallel-fastq-dump --sra-id $ID --threads 8
 	
-	# Perform trimming based on the quality score (-phred33) with a sliding window (SLIDINGWINDOW:4:15) using 8 cores (-threads 8)
+	# Perform trimming based on the quality score (-phred33) with a sliding window (SLIDINGWINDOW:4:15) using 8 cores
 	# storing the results in $ID\_trimQuality.fastq
 	java -jar $EBROOTTRIMMOMATIC/trimmomatic-0.39.jar SE -threads 8 -phred33 $ID.fastq $ID\_trimQuality.fastq SLIDINGWINDOW:4:15
 	java -jar $EBROOTTRIMMOMATIC/trimmomatic-0.39.jar SE -threads 8 -phred33 $ID\_trimQuality.fastq $ID\_trimBoth.fastq ILLUMINACLIP:Adapters.fa:2:30:10
 	java -jar $EBROOTTRIMMOMATIC/trimmomatic-0.39.jar SE -threads 8 -phred33 $ID.fastq $ID\_trimAdapters.fastq ILLUMINACLIP:Adapters.fa:2:30:10
 	
 	# Perform QC with fastqc on the trimmed reads outputting everything in the fastqc folder (--outdir fastqc)
-	fastqc --outdir fastqc $ID\_trimQuality.fastq
-	fastqc --outdir fastqc $ID\_trimBoth.fastq
+	fastqc --outdir 3_fastqc $ID\_trimQuality.fastq
+	fastqc --outdir 3_fastqc $ID\_trimBoth.fastq
 	
 	# Make directory to output alignment results
 	mkdir $ID\_quant
@@ -53,7 +60,7 @@ do
 	STAR --runThreadN 8 --outFileNamePrefix $ID\_trimQuality_ --genomeDir TAIR --readFilesIn $ID\_trimQuality.fastq
 	
 	# Summarization to counts for STAR (only trimBoth output)
-	featureCounts -T 8 -g gene_id -a ../human_ref/gencode.v42.chr_patch_hapl_scaff.annotation.gtf -o $ID\_featcount.txt $ID\_Aligned.out.sam
+	featureCounts -T 8 -g gene_id -a Homo_sapiens.GRCh38.108.gtf -o $ID\_featcount.txt $ID\_Aligned.out.sam
 	
 	# Move star log files
 	mv $ID\_Log.final.out STAR_logs/$ID\_Log.final.out
@@ -70,8 +77,8 @@ done
 
 # Make directory to output all alignment
 mkdir STAR_quant 
-# Put all STAR output files in one directory (easier for downloading and downstream processing with Rstudio!)
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585
+# Put all STAR output files in one directory
+for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596 SRR2042597
 do
 	mv $ID\_featcount.txt STAR_quant/$ID\_featcount.txt
 	mv $ID\_Aligned.out.sam STAR_quant/$ID\_Aligned.out.sam
@@ -95,7 +102,11 @@ do
 	rm $ID\_trimAdapters_SJ*
 done
 
+# remove reference files
+rm Homo_sapiens.GRCh38.108.gtf
+rm Homo_sapiens.GRCh38.dna.toplevel.fa
+
 # Use multiqc to make an overview of all quality control and log files performed 
-# ("." option searches all files and subdirectories of the current working directory)
-multiqc .
+mkdir 3_multiqc
+multiqc --outdir 3_multiqc .
 

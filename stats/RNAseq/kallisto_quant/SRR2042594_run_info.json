@@ -1,0 +1,13 @@
+{
+	"n_targets": 187626,
+	"n_bootstraps": 0,
+	"n_processed": 31434297,
+	"n_pseudoaligned": 27016236,
+	"n_unique": 5145326,
+	"p_pseudoaligned": 85.9,
+	"p_unique": 16.4,
+	"kallisto_version": "0.46.1",
+	"index_version": 10,
+	"start_time": "Sun Nov 20 18:52:30 2022",
+	"call": "kallisto quant -i Homo_sapiens.GRCh38.cdna.all.release-94_k31.idx -o SRR2042594_quant -t 8 --single -l 100 -s 1 -g Homo_sapiens.GRCh38.108.gtf SRR2042594_trimBoth.fastq"
+}

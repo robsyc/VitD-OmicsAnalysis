@@ -95,7 +95,7 @@ head(exprs(arrayRma))
 ## Annotation
 We will be investigating differential expression between colon Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation.
 
-```{r}
+```{r error=FALSE, warning=FALSE, message=FALSE}
 annot <- getGEO(filename = "./data/microarray/GSE5145/GSE5145_family.soft")
 
 IDs <- annot@header$sample_id
@@ -141,7 +141,7 @@ head(exprs(arrayRma))
 ## Annotation
 We will be investigating differential expression between VitD treated & untreated cel cultures. Confounding factors: there are 4 wild-type and 4 HVDRR cells.
 
-```{r}
+```{r error=FALSE, warning=FALSE, message=FALSE}
 annot <- read.delim("./data/annotation/GSE22523/E-GEOD-22523.sdrf.txt")
 print(annot[, c("Source.Name", "Comment..Sample_source_name.", "Characteristics.agent.", "Characteristics.individual.")])
 ```
