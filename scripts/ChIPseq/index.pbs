@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+#PBS -l nodes=1:ppn=8
+#PBS -l walltime=06:00:00
+#PBS -l mem=16gb
+
+# "# command" was used as a placeholder where a line of code should be inserted
+
+# Load the necessary modules
+module load MACS2/2.2.7.1-foss-2021b
+module load Bowtie2/2.4.4-GCC-11.2.0
+module load SAMtools/1.15-GCC-11.2.0
+
+HOMO_SAPIENS_URL="https://ftp.ensembl.org/pub/release-108/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
+HOMO_SAPIENS_FA="Homo_sapiens.GRCh38.dna.toplevel.fa"
+
+# Change to the directory you are working in 
+cd $VSC_DATA_VO/Courses/AHTA/Group11/ChIPseq
+mkdir macs2
+
+echo "downloading human fasta"
+[ -f "$HOMO_SAPIENS_FA.gz"p ] || wget $HOMO_SAPIENS_URL
+
+echo "extracting"
+pigz -d *.gz
+
+echo "building index with bowtie"
+
+# build index
+[ -f "Homo_sapiens" ] || bowtie2-build --threads 8 $HOMO_SAPIENS_FA Homo_sapiens
+
+echo "index built!"

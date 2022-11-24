@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+#PBS -l nodes=1:ppn=8
+#PBS -l walltime=06:00:00
+#PBS -l mem=16gb
+
+# "# command" was used as a placeholder where a line of code should be inserted
+
+# Load the necessary modules
+module load MACS2/2.2.7.1-foss-2021b
+module load Bowtie2/2.4.4-GCC-11.2.0
+module load SAMtools/1.15-GCC-11.2.0
+#module load parallel-fastq-dump
+#module load FastQC/0.11.9-Java-11
+module load SRA-Toolkit
+
+UNTREATED="SRR4828890"
+TREATED="SRR4828891"
+
+# Change to the directory you are working in 
+cd $VSC_DATA_VO/Courses/AHTA/Group11/ChIPseq
+mkdir macs2
+
+echo "downloading sample & control fastq"
+
+prefetch $UNTREATED
+prefetch $TREATED
+[ -f "$UNTREATED.fastq" ] || fasterq-dump --concatenate-reads $UNTREATED
+[ -f "$TREATED.fastq" ] || fasterq-dump --concatenate-reads $TREATED
+
+# aligning with bowtie
+# Aligning 
+[ -f "$UNTREATED.sam" ] || bowtie2 -p 4 -x Homo_sapiens -U $UNTREATED.fastq -S $UNTREATED.sam
+[ -f "$TREATED.sam" ] || bowtie2 -p 4 -x Homo_sapiens -U $TREATED.fastq -S $TREATED.sam
+
+echo "converting to bam..."
+# Conversion to bam
+# TODO: just save everything as bam when downloading!
+[ -f $UNTREATED.bam ] || samtools view -S -b $UNTREATED.sam > $UNTREATED.bam
+[ -f $TREATED.bam ] || samtools view -S -b $TREATED.sam > $TREATED.bam
+
+echo "converted to bam!"
+
+# TODO: should we use "broadpeak" option or not? -> look up online
+# -> need narrow peaks (transcriptor factor bindings); broad peaks is used for broad regulation factors like histone modifications
+# resource: https://hbctraining.github.io/Intro-to-ChIPseq/lessons/05_peak_calling_macs.html
+# TODO -> has some remarks about how you should handle duplicates
+
+# Run MACS2 (TODO modify this command)
+# -g hs: (homo-sapiens mappable region?) -> TODO look up
+
+echo "calling peaks..."
+macs2 callpeak -f BAM -t $TREATED.bam -c $UNTREATED.bam -n $TREATED -g hs --outdir macs2
+
+echo "all done :)"
