@@ -6,6 +6,9 @@
 
 # "# command" was used as a placeholder where a line of code should be inserted
 
+# specific arguments were taken from the original paper (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3241659/)
+# -> section ChIP-seq data analysis
+
 # Load the necessary modules
 module load MACS2/2.2.7.1-foss-2021b
 module load Bowtie2/2.4.4-GCC-11.2.0
@@ -14,8 +17,8 @@ module load SAMtools/1.15-GCC-11.2.0
 #module load FastQC/0.11.9-Java-11
 module load SRA-Toolkit
 
-UNTREATED="SRR4828890"
-TREATED="SRR4828891"
+CONTROL="SRR111951" # there is 1 other IgG sample that can be used as control -> check later
+SAMPLES="SRR111953 SRR111954 SRR111955 SRR111956 SRR111957"
 
 # Change to the directory you are working in 
 cd $VSC_DATA_VO/Courses/AHTA/Group11/ChIPseq
@@ -23,21 +26,31 @@ mkdir macs2
 
 echo "downloading sample & control fastq"
 
-prefetch $UNTREATED
-prefetch $TREATED
-[ -f "$UNTREATED.fastq" ] || fasterq-dump --concatenate-reads $UNTREATED
-[ -f "$TREATED.fastq" ] || fasterq-dump --concatenate-reads $TREATED
+for sample in $CONTROL $SAMPLES
+do
+    echo "fetching $sample" 
+    prefetch $sample
+    [ -f "$sample.fastq" ] || fasterq-dump --concatenate-reads $sample
+done
 
 # aligning with bowtie
-# Aligning 
-[ -f "$UNTREATED.sam" ] || bowtie2 -p 4 -x Homo_sapiens -U $UNTREATED.fastq -S $UNTREATED.sam
-[ -f "$TREATED.sam" ] || bowtie2 -p 4 -x Homo_sapiens -U $TREATED.fastq -S $TREATED.sam
+# Aligning
+for sample in $CONTROL $SAMPLES
+do
+    echo "aligning $sample"
+    [ -f "$sample.sam" ] || bowtie2 -p 8 -x Homo_sapiens -U $sample.fastq -S $sample.sam \
+				    --very-sensitive
+				     
+done
 
 echo "converting to bam..."
 # Conversion to bam
 # TODO: just save everything as bam when downloading!
-[ -f $UNTREATED.bam ] || samtools view -S -b $UNTREATED.sam > $UNTREATED.bam
-[ -f $TREATED.bam ] || samtools view -S -b $TREATED.sam > $TREATED.bam
+for sample in $CONTROL $SAMPLES
+do
+    echo "converting $sample"
+    [ -f $sample.bam ] || samtools view -S -b $sample.sam > $sample.bam
+done
 
 echo "converted to bam!"
 
@@ -50,6 +63,10 @@ echo "converted to bam!"
 # -g hs: (homo-sapiens mappable region?) -> TODO look up
 
 echo "calling peaks..."
-macs2 callpeak -f BAM -t $TREATED.bam -c $UNTREATED.bam -n $TREATED -g hs --outdir macs2
+for sample in $SAMPLES
+do
+    echo "calling peaks for $sample"
+    macs2 callpeak -f BAM -t $sample.bam -c $CONTROL.bam -n $sample -g hs --outdir macs2
+done
 
 echo "all done :)"
