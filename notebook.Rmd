@@ -17,8 +17,9 @@ Group memebers: Robbe Claeys & Simon Bil
 
 RNA microarray
 
-- https://pubmed.ncbi.nlm.nih.gov/25667505/
-- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4030167/  
+- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4030167/
+  - https://doi.org/10.1152/physiolgenomics.00134.2006
+  - https://doi.org/10.1096/fj.10-172577
 
 ChIP & RNA seq
 
@@ -43,7 +44,7 @@ ChIP seq (GSE89431)
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89431
 
 ```{r}
-table_general_info <- rbind(c("GSE5145", "GSE22523", "GSE69284", "GSE89431"), c(6, 8, 18, 39), c(6, 8, 18, 6))
+table_general_info <- rbind(c("GSE5145", "GSE22523", "GSE69284", "GSE89431"), c(6, 8, 18, 39), c(6, 8, 4, 6))
 
 colnames(table_general_info) <- c("Microarray Data", "Microarray Data", "RNAseq Data", "ChIPseq Data")
 
@@ -54,38 +55,51 @@ table_general_info
 
 ---
 
+Loading all libraries
+
+```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
+library(htmltools)
+
+# for microarrays
+library(oligo)
+library(GEOquery)
+library(arrayQualityMetrics)
+library(limma)
+
+# for RNA seq
+library(tximport)
+library(dplyr)
+
+# for ChIP seq
+
+```
+
 # Microarray Data - GSE5145
+
 ## General info
-This dataset (GSE5145) was generated in 2007 and aimed to identify the genes regulated by Vit D in primary bronchial smooth muscle cells. Cells were treated for 24 hours with 100 nM of Vit D3. The experiment was done in triplicates (a total of 6 samples were analyzed). All samples of this study were used for our data analysis.
+
+This dataset was generated in 2007 and aimed to identify the genes regulated by Vit D in primary bronchial smooth muscle cells. Cells were treated for 24 hours with 100 nM of Vit D3. The experiment was done in triplicate form (a total of 6 samples were analyzed). All samples of this study were used for our data analysis.
 
 **Microarray type:** Affymetrix Human Genome U133 Plus 2.0 Array [HG-U133_Plus_2]
 
 ## Intensity values
-Load libraries
-```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
-library(affy)
-library(oligo)
-library(arrayQualityMetrics)
-library(ArrayExpress)
-library(limma)
-library(siggenes)
-library(Biobase)
-library(GEOquery)
-```
 
-Load the data
+Load the data.
+
 ```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
 exonCELs <- list.celfiles("./data/microarray/GSE5145/")
 arrayRaw <- read.celfiles(paste(rep("./data/microarray/GSE5145/", length(exonCELs)), exonCELs, sep = ""))
 ```
 
 Get dimensions and general overview of the data. The first three `.CEL` files are the Vit D deficient samples, the last three are the control samples.
+
 ```{r}
 dim(exprs(arrayRaw))
 head(exprs(arrayRaw))
 ```
 
-Summarization of the array data.
+Extraction of the expression values using the robust multichip average method (RMA) and summarization of the array data.
+
 ```{r}
 arrayRma = rma(arrayRaw)
 dim(exprs(arrayRma))
@@ -93,10 +107,11 @@ head(exprs(arrayRma))
 ```
 
 ## Annotation
-We will be investigating differential expression between colon Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation.
+
+We will be investigating differential expression between Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation. All primary bronchial smooth muscle cells were derived from the same tissue sample of a 31 year old Hispanic male.
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
-annot <- getGEO(filename = "./data/microarray/GSE5145/GSE5145_family.soft")
+annot <- getGEO(filename = "./data/annotation/GSE5145/GSE5145_family.soft")
 
 IDs <- annot@header$sample_id
 titles <- c()
@@ -107,6 +122,86 @@ for (id in IDs) {
 }
 data.frame(IDs, titles)
 ```
+
+## Explorative quality evaluation
+
+Quality of the array determined with the arrayQualityMetrics package.
+
+```{r}
+arrayQualityMetrics(expressionset = arrayRma,
+                    outdir = "./stats/Microarray/GSE5145/",
+                    force = TRUE)
+```
+
+From this analysis we can conclude that the overall quality of the arrays is quite good. However, sample 6 shows signs of being an outlier and the graph on figure 7 (Standard deviation versus rank of the mean) shows an upward trend, which is symptomatic of a saturation of the intensities.
+
+## Differential expression analysis
+
+We will perform LIMMA to look for differential expressed genes.
+
+```{r}
+# design matrix
+design <- model.matrix(~ 0 + factor(c(1,1,1,2,2,2)))
+colnames(design) <- c("VitD", "Control")
+fit <- lmFit(arrayRma, design)
+```
+
+To make a pair-wise comparison between the two groups the appropriate contrast matrix is created.
+
+```{r}
+contrast.matrix <- makeContrasts(Control-VitD, levels = design)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+```
+
+A list of top genes differential expressed in group2 (Control) versus group1 (VitD) can now be obtained.
+
+The best probe (203887_s_at) is expressed 10^3 times less in the Control group (log fold change). All 500 probes in this list have significant adjusted p-values.
+
+```{r}
+topNumber <- 500
+table <- topTable(fit2, coef=1, number=topNumber, adjust="BH") # FDR correction of p-values
+table
+```
+
+## Summarization at the gene level
+
+Note that we are now working at the level of probe sets and not at level of genes per se. Whereas many genes are only represented by a single probe set on a micro array, for some genes multiple probe sets are present
+
+```{r}
+# input data (all of equal length)
+allProbeIDs <- annot@gpls[["GPL570"]]@dataTable@table[["ID"]]
+allGeneIDs <- annot@gpls[["GPL570"]]@dataTable@table[["ENTREZ_GENE_ID"]]
+allGeneSym <- annot@gpls[["GPL570"]]@dataTable@table[["Gene Symbol"]]
+allGeneOnt <- annot@gpls[["GPL570"]]@dataTable@table[["Gene Ontology Biological Process"]]
+```
+
+```{r}
+# desired data
+geneIDs <- c()
+geneSym <- c()
+logFCs <- c()
+geneOnt <- c()
+
+for (topIndex in 1:topNumber) {
+  probeID <- rownames(table)[topIndex]
+  annotIndex <- grep(probeID, allProbeIDs)
+  
+  if (!(allGeneIDs[annotIndex] %in% geneIDs) & (probeID %in% allProbeIDs)) {
+    geneIDs <- append(geneIDs, allGeneIDs[annotIndex[1]])
+    geneSym <- append(geneSym, allGeneSym[annotIndex[1]])
+    logFCs <- append(logFCs, table[[1]][topIndex])
+    geneOnt <- append(geneOnt, allGeneOnt[annotIndex[1]])
+  } 
+}
+
+df <- data.frame(Entrez.gene.ID = geneIDs, Gene.symbol = geneSym, Fold.Change = logFCs, Gene.ontology = geneOnt)
+df
+```
+
+The top 500 most significant probes could be mapped to 330 individual genes, which were mostly upregulated after Vit D treatment. Many of these genes have a role in high-level signal transduction (cell cyle, metabolism, differentiation). This is a first indication that Vit D is an important nutrient with pleiotropic regulatory effects in the cell.
+
+When comparing these findings to those reported in the original paper, the same upregulated genes were found.
 
 ---
 
@@ -142,17 +237,90 @@ head(exprs(arrayRma))
 We will be investigating differential expression between VitD treated & untreated cel cultures. Confounding factors: there are 4 wild-type and 4 HVDRR cells.
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
-annot <- read.delim("./data/annotation/GSE22523/E-GEOD-22523.sdrf.txt")
-print(annot[, c("Source.Name", "Comment..Sample_source_name.", "Characteristics.agent.", "Characteristics.individual.")])
+annot <- getGEO(filename = "./data/annotation/GSE22523/GSE22523_family.soft")
+
+IDs <- annot@header$sample_id
+titles <- c()
+
+for (id in IDs) {
+  title <- annot@gsms[[id]]@header[["title"]]
+  titles <- append(titles, title)
+}
+data.frame(IDs, titles)
 ```
+
+## Explorative quality evaluation
+
+Quality of the array determined with the arrayQualityMetrics package.
+
+```{r warning=FALSE}
+arrayQualityMetrics(expressionset = arrayRma,
+                    outdir = "./stats/Microarray/GSE22523/",
+                    force = TRUE)
+```
+
+From this analysis we can conclude that the overall quality of the arrays is very good. No problematic outliers or variance trends were observed.
+
+## Differential expression analysis
+
+We will perform LIMMA to look for differential expressed genes.
+
+```{r}
+design <- model.matrix(~ factor(c(1,1,2,2,1,1,2,2)) + 
+    factor(c(1,1,1,1,2,2,2,2)))
+colnames(design) <- c("Intercept", "Treated", "Celltype")
+fit <- lmFit(arrayRma, design)
+fit <- eBayes(fit)
+```
+
+A list of top differential expressed genes in the treated groups versus the control groups can now be obtained by evaluating the first coefficient. The second coefficient (cell type) did not yield significant findings, indicating that cell type did not play a deciding role in the differential expression.
+
+The best probe (7978905) is expressed 10^14 times more in the Control group (log fold change). All 500 probes in this list have significant adjusted p-values. Notably, no negative fold changes were observed for the top 500 differential expressed genes.
+
+```{r}
+topNumber <- 500
+table <- topTable(fit, coef = 2, number = topNumber, adjust = "BH") # FDR correction of p-values
+table
+```
+
+## Summarization at the gene level
+
+For annotation, the different probe sets are mapped to individual genes present in the .soft file.
+
+```{r}
+# input data (all of equal length)
+allProbeIDs <- annot@gpls[["GPL6244"]]@dataTable@table[["ID"]]
+allGeneIDs <- annot@gpls[["GPL6244"]]@dataTable@table[["gene_assignment"]]
+```
+
+```{r}
+# desired data
+geneIDs <- c()
+logFCs <- c()
+
+for (topIndex in 1:topNumber) {
+  probeID <- rownames(table)[topIndex]
+  annotIndex <- grep(probeID, allProbeIDs)
+  
+  if (!(allGeneIDs[annotIndex] %in% geneIDs) & (probeID %in% allProbeIDs)) {
+    geneIDs <- append(geneIDs, allGeneIDs[annotIndex[1]])
+    logFCs <- append(logFCs, table[[1]][topIndex])
+  } 
+}
+
+df <- data.frame(Entrez.gene.ID = geneIDs, Fold.Change = logFCs)
+df
+```
+
+The top 500 most significant probes could be mapped to 286 individual genes, which were all upregulated after Vit D treatment. Again, we see many general signal transduction factors (e.g. elongation factor) as well as general-purpose factors  such as the mitochondrial 12S transcript.
+
+When comparing these findings to those reported in the original paper, only a few matches were found. This is because the paper was specifically investigating transcripts with a role in immune signaling, thus only these were evaluated.
 
 ---
 
 # RNAseq Data - GSE69284
 ## General info
-This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), all were used for our data analysis.
-
-Better to use all samples (all 18 and add time as factor)
+This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), 12 of which were used for our data analysis.
 
 - Read length: 51bp
 - Single/paired end sequencing: single end sequencing
@@ -160,23 +328,44 @@ Better to use all samples (all 18 and add time as factor)
 
 ## Quality control
 A MultiQC quality control was performed and mapping statistics are provided through the kallisto log output.
+
 ```{r, echo = FALSE, results='asis'}
-htmltools::includeHTML("./stats/RNAseq/multiqc_report.html")
+htmltools::includeHTML("./stats/RNAseq/2_multiqc/multiqc_report.html")
 ```
 
 ## Pseudo count table
+Kallisto transcript mapping was performed to generate a pseudo-count table.
+
+The transcript annotation data is extracted.
+
 ```{r}
-library(tximport)
+# annotation data
+GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org", dataset="hsapiens_gene_ensembl")
+# attributes
+atr <- listAttributes(GRCh38)
+data <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'external_gene_name'), mart = GRCh38)
 
-# get file locations
-#files <- list.files("./stats/RNAseq/kallisto")
-#files <- files[grep("abundance.tsv", files)]
-#samples <- unlist(strsplit(files,"_"))[c(1:length(files))*2-1]
-#files <- paste(rep("./stats/RNAseq/kallisto",length(files)), files, sep="")
-#names(files) <- samples
+tx2geneGtf <- select(data, ensembl_transcript_id, ensembl_gene_id)
+tx2geneGtf <- rename(tx2geneGtf, TXNAME = ensembl_transcript_id)
+tx2geneGtf <- rename(tx2geneGtf, GENEID = ensembl_gene_id)
+head(tx2geneGtf)
+```
 
-# load RNAseq data
-#txi <- tximport(files, type = "kallisto", tx2gene = tx2geneGtf)
+The Kallisto pseudoalignment data is loaded.
+
+```{r}
+## get file locations
+files <- list.files("./stats/RNAseq/kallisto_quant/")                                   # all files in quant folder
+files <- files[grep("abundance.tsv", files)]                                            # filter for .tsv files
+samples <- unlist(strsplit(files, "_")) [c(1:length(files)) * 2-1]                      # cut out sample ID
+files <- paste(rep("./stats/RNAseq/kallisto_quant/", length(files)), files, sep="")     # add whole path
+names(files) <- samples                                                                 # add sample ID as name
+
+## load RNAseq data
+txi <- tximport(files, type = "kallisto", tx2gene = tx2geneGtf)
+
+head(txi$counts)
+dim(txi$counts)
 ```
 
 
