@@ -176,7 +176,7 @@ allGeneSym <- annot@gpls[["GPL570"]]@dataTable@table[["Gene Symbol"]]
 allGeneOnt <- annot@gpls[["GPL570"]]@dataTable@table[["Gene Ontology Biological Process"]]
 ```
 
-```{r}
+```{r warning=FALSE}
 # desired data
 geneIDs <- c()
 geneSym <- c()
@@ -273,9 +273,9 @@ fit <- lmFit(arrayRma, design)
 fit <- eBayes(fit)
 ```
 
-A list of top differential expressed genes in the treated groups versus the control groups can now be obtained by evaluating the first coefficient. The second coefficient (cell type) did not yield significant findings, indicating that cell type did not play a deciding role in the differential expression.
+A list of top differential expressed genes in the treated groups versus the control groups can now be obtained by evaluating the first coefficient. The cell type coefficient did not yield significant findings, indicating that cell type did not play a deciding role in the differential expression.
 
-The best probe (7978905) is expressed 10^14 times more in the Control group (log fold change). All 500 probes in this list have significant adjusted p-values. Notably, no negative fold changes were observed for the top 500 differential expressed genes.
+The best probe (7894912) is expressed 10^-0.9 times less in the Control group (log fold change). Notably, no significant findings were retrieved after FDR correction of the p-values.
 
 ```{r}
 topNumber <- 500
@@ -312,7 +312,7 @@ df <- data.frame(Entrez.gene.ID = geneIDs, Fold.Change = logFCs)
 df
 ```
 
-The top 500 most significant probes could be mapped to 286 individual genes, which were all upregulated after Vit D treatment. Again, we see many general signal transduction factors (e.g. elongation factor) as well as general-purpose factors  such as the mitochondrial 12S transcript.
+The top 500 most significant probes could be mapped to 235 individual genes. Again, we see many general signal transduction factors (e.g. elongation factor) as well as general-purpose factors such as the mitochondrial rRNA transcripts.
 
 When comparing these findings to those reported in the original paper, only a few matches were found. This is because the paper was specifically investigating transcripts with a role in immune signaling, thus only these were evaluated.
 
@@ -320,7 +320,7 @@ When comparing these findings to those reported in the original paper, only a fe
 
 # RNAseq Data - GSE69284
 ## General info
-This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), 12 of which were used for our data analysis.
+This dataset (GSE69284) was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), 4 of which were used for our data analysis.
 
 - Read length: 51bp
 - Single/paired end sequencing: single end sequencing
