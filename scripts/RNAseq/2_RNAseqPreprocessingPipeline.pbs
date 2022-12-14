@@ -19,18 +19,23 @@ cd $VSC_DATA_VO/Courses/AHTA/Group11/RNAseq
 mkdir 2_fastqc
 
 
-# Download pre-built human reference genome index & annotation file & reference
-wget https://github.com/pachterlab/kallisto-transcriptome-indices/releases/download/94/Homo_sapiens.GRCh38.cdna.all.release-94_k31.idx.gz
+# Download pre-built human annotation file & reference
 wget https://ftp.ensembl.org/pub/release-108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.gtf.gz
 wget https://ftp.ensembl.org/pub/release-108/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
 # Unzip
 pigz -d *.gz
 
+# Create Pseudo Transcriptome
+gtf_to_fasta Homo_sapiens.GRCh38.108.gtf Homo_sapiens.GRCh38.dna.toplevel.fa Homo_sapiens_PseudoTranscriptome.fa
+
+# Create index
+kallisto index -i Homo_sapiens_index Homo_sapiens_PseudoTranscriptome.fa
+
 # Make a directory to store kallisto logs
 mkdir kallisto_logs
 
 # For loop over all samples
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596 SRR2042597
+for ID in SRR2042582 SRR2042583 SRR2042588 SRR2042589
 # This for loop will loop over the variables after "in" each time attributing the value SRRXXX as to $ID
 do 
 	# Echo the ID you are processing
@@ -52,7 +57,7 @@ do
 	mkdir $ID\_quant
 
 	# Pseudo-alignment using kallisto
-	kallisto quant -i Homo_sapiens.GRCh38.cdna.all.release-94_k31.idx -o $ID\_quant -t 8 --single -l 100 -s 1 -g Homo_sapiens.GRCh38.108.gtf $ID\_trimBoth.fastq &> kallisto_logs/$ID\_kallisto.log
+	kallisto quant -i Homo_sapiens_index -o $ID\_quant -t 8 --single -l 100 -s 1 -g Homo_sapiens.GRCh38.108.gtf $ID\_trimBoth.fastq &> kallisto_logs/$ID\_kallisto.log
 	
 	# Change numeric ids in kallisto output with gene IDs (this is more advanced unix coding)
 	grep ">" Homo_sapiens.GRCh38.dna.toplevel.fa | cut -d" " -f 2 > $ID\_quant/transcriptIDs.txt
@@ -67,7 +72,8 @@ done
 
 
 # remove reference files
-rm Homo_sapiens.GRCh38.cdna.all.release-94_k31.idx
+rm Homo_sapiens_PseudoTranscriptome.fa
+rm Homo_sapiens_index
 rm Homo_sapiens.GRCh38.108.gtf
 rm Homo_sapiens.GRCh38.dna.toplevel.fa
 
@@ -75,7 +81,7 @@ rm Homo_sapiens.GRCh38.dna.toplevel.fa
 # Make directory to output all alignment
 mkdir kallisto_quant
 # Put all kallisto output files in one directory
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596 SRR2042597
+for ID in SRR2042582 SRR2042583 SRR2042588 SRR2042589
 do
 	mv $ID\_quant/abundance.h5 kallisto_quant/$ID\_abundance.h5
 	mv $ID\_quant/abundance.tsv kallisto_quant/$ID\_abundance.tsv

@@ -2,7 +2,7 @@
 
 #PBS -l nodes=1:ppn=8
 #PBS -l walltime=09:00:00
-#PBS -l mem=12gb
+#PBS -l mem=16gb
 
 # "# command" was used as a placeholder where a line of code should be inserted
 
@@ -17,8 +17,8 @@ cd $VSC_DATA_VO/Courses/AHTA/Group11/RNAseq
 # Make a directory to store fastqc output
 mkdir 1_fastqc
 
-# For loop over samples used (replicates A only)
-for ID in SRR2042580 SRR2042581 SRR2042582 SRR2042583 SRR2042584 SRR2042585 SRR2042586 SRR2042587 SRR2042588 SRR2042589 SRR2042590 SRR2042591 SRR2042592 SRR2042593 SRR2042594 SRR2042595 SRR2042596S SRR2042597
+# For loop over samples used
+for ID in SRR2042582 SRR2042583 SRR2042588 SRR2042589
 do 
 	# Echo the ID you are processing
 	echo $ID

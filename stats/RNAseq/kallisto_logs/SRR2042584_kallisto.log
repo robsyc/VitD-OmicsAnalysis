@@ -7,7 +7,7 @@
 [quant] running in single-end mode
 [quant] will process file 1: SRR2042584_trimBoth.fastq
 [quant] finding pseudoalignments for the reads ... done
-[quant] processed 26,370,771 reads, 22,360,785 reads pseudoaligned
+[quant] processed 26,365,068 reads, 22,359,915 reads pseudoaligned
 [   em] quantifying the abundances ... done
 [   em] the Expectation-Maximization algorithm ran for 1,344 rounds
 
