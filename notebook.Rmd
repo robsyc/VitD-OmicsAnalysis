@@ -43,9 +43,9 @@ RNA seq (GSE69284)
 
 - https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE69284
 
-ChIP seq (GSE89431)
+ChIP seq (GSE27438)
 
-- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE89431
+- https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE27438
 
 ```{r}
 table_general_info <- rbind(c("GSE5145", "GSE22523", "E-MTAB-9789", "GSE69284", "GSE89431"), c(6, 8, 112, 18, 39), c(6, 8, 32, 4, 6))
@@ -503,15 +503,15 @@ print(RNAseq_annot[c("Run", "Treatment", "treatment_time")])
 
 ---
 
-# ChIPseq Data - GSE89431
+# ChIPseq Data - GSE27438
 
 ## General info
-This dataset (GSE89431) was generated in 2017 and aimed to identify genomic locations bound by the vitamin D receptor (VDR).
-ChIP-seq for the vitamin D receptor (VDR) was performed in the monocytic THP-1 cells after stimulation with the natural VDR ligand 1,25-dihydroxyvitamin D3 (1,25(OH)2D3) or with vehicle for 2 or 24h before ChIP assay.
+This dataset (GSE27438) was generated in 2011 and aimed to identify genomic locations bound by the vitamin D receptor (VDR).
+ChIP-seq for the vitamin D receptor (VDR) was performed in the monocytic THP-1 cells after stimulation with the natural VDR ligand 1,25-dihydroxyvitamin D3 (1,25(OH)2D3) or with vehicle for 4h before ChIP assay.
 
-- Read length: 51bp
+- Read length: 36bp
 - Single/paired end sequencing: single end sequencing
-- Platform used: Illumina HiSeq 2000
+- Platform used: Illumina Genome Analyzer II
 
 ## Quality control on fastQ files
 
@@ -520,7 +520,6 @@ htmltools::includeHTML("./stats/ChIPseq/multiqc_report.html")
 ```
 
 - Watch out bcause there are two samples with lots of reads (fastQC sequence counts)
-- time as a factor in the model -> discrete, not continuous
 
 ## Mapping statistics
 
@@ -530,7 +529,7 @@ htmltools::includeHTML("./stats/ChIPseq/multiqc_report.html")
 ## Annotation
 
 ```{r}
-gse89431_annot <- read.csv("./data/annotation/GSE89431/SraRunTable.txt")
-print(gse89431_annot[c("Run", "Treatment", "Time")])
+gse27438_annot <- read.csv("./data/annotation/GSE27438/SraRunTable.txt")
+print(gse27438_annot[c("Run", "Treatment")])
 ```
 
