@@ -73,6 +73,7 @@ library(limma)
 # for RNA seq
 library(tximport)
 library(dplyr)
+library(edgeR)
 
 # for ChIP seq
 
@@ -333,7 +334,7 @@ Due to the HPC downtime, pre-generated count tables were used as a starting poin
 - Platform used: Illumina NextSeq500
 
 ## Loading count data
-The count data was downloaded and 32 samples (from 16 individduals) were selected.
+The count data was downloaded and 32 samples (from 16 individuals) were selected.
 
 ```{r}
 # first loading the annotation file
@@ -344,8 +345,8 @@ head(annot)
 individuals <- factor(annot$Characteristics.individual.)
 treatments <- factor(annot$Factor.Value.compound.)
 treatments <- relevel(treatments, ref = "none")
-genders <- factor(annot$Characteristics.sex.)
-ages <- annot$Characteristics.age.
+#genders <- factor(annot$Characteristics.sex.)
+#ages <- annot$Characteristics.age.
 ```
 
 Gender, age, and the measured Vit D serum levels (before and after treatment) are possible confounding factors that can be added to the model. We chose not to add measured Vit D serum levels to reduce complexity.
@@ -377,25 +378,6 @@ df <- df[,-1]
 head(df)
 ```
 
-## Filter and normalize count data
-Check for and remove diplicate rows.
-
-```{r}
-sum(duplicated(rownames(df)))
-```
-
-
-There is no point in analyzing genes that are not expressed in either experimental condition. We consider a gene to be expressed at a reasonable level in a sample if it has at least two counts for each million mapped reads in that sample. We also only keep genes expressed in at least three samples:
-
-```{r}
-library(edgeR)
-keep = rowSums(cpm(df) > 2) >= 3
-df = df[keep, ]
-table(keep)
-```
-
-Note that the filtering does not use knowledge of what treatment corresponds to each sample, so the filtering does not bias the subsequent differential expression analysis. 
-
 A DGEList (edgeR count object) is created and TMM normalization is applied to correct for the library size for highly abundant differentialy expressed genes:
 
 ```{r}
@@ -411,23 +393,58 @@ The plotMDS(.) function draws a multi-dimensional scaling plot of the RNA sample
 plotMDS(y, col = as.numeric(treatments))
 ```
 
-Distances on an MDS plot of a DGEList object correspond to leading log-fold-change between each pair of samples. Leading log-fold-change is the root-mean-square average of the largest log2-fold-changes between each pair of samples. Each pair of samples extracted from each patient tend to cluster together, suggesting a batch effect. The Vit D treated samples tend to be above the non-treated samples for each patient, suggesting a treatment effect within paired sample. 
+Distances on an MDS plot of a DGEList object correspond to leading log-fold-change between each pair of samples. Leading log-fold-change is the root-mean-square average of the largest log2-fold-changes between each pair of samples. Each pair of samples extracted from each patient tend to cluster together, suggesting a batch effect.
 
 ## The design matrix
 Before we fit GLMs, we need to define our design matrix based on the experimental design. We want to test for differential expressions between Vit D treated and non-treated samples within batches, i.e. adjusting for differences between patients. In statistical terms, this is an additive linear model. So the design matrix is created as:
 
 ```{r}
 # Create a design matrix that includes the treatment and confounding factors
-design <- model.matrix(~ treatments + individuals + genders + ages)
+design <- model.matrix(~ treatments + individuals)
 #design <- model.matrix(~ treatments)
 rownames(design) <- colnames(df)
+head(design)
+```
+
+## Filter and normalize count data
+Check for and remove duplicate rows.
+
+```{r}
+sum(duplicated(rownames(df)))
+```
+
+There is no point in analyzing genes that are not expressed in either experimental condition. We consider a gene to be expressed at a reasonable level in a sample if it has at least two counts for each million mapped reads in that sample. We also only keep genes expressed in at least three samples:
+
+```{r}
+#keep = rowSums(cpm(df) > 2) >= 3
+keep <- filterByExpr(y)
+df = df[keep, ]
+table(keep)
+```
+
+```{r}
+# more filtering
+keep <- filterByExpr(y, design)
+table(keep)
+y <- y[keep, , keep.lib.sizes = FALSE]
+```
+
+```{r}
+# more normalizing
+y <- calcNormFactors(y)
+y$samples
+```
+
+```{r}
+# more exploration
+plotMDS(y, col = as.numeric(treatments))
 ```
 
 ## Estimating the dispersion
 The negative binomial distribution, is characterized by a dispersion parameter. The average dispersion over all genes is estimated:
 
 ```{r}
-y = estimateDisp(y, design = design)
+y <- estimateDisp(y, design)
 plotBCV(y)
 ```
 
@@ -447,13 +464,13 @@ result <- result[result[["table"]][["FDR"]] < 0.05,]
 result
 ```
 
-After FDR-correction, 75 significantly differentially expressed genes could be determined.
+After FDR-correction, 239 significant differentially expressed genes could be determined.
 
 
 We check whether there was a genuine need to adjust for the experimental individuals. We do this by testing for differential expression between the individuals. There is considerable differential expression, justifying our decision to adjust for the batch effect:
 
 ```{r}
-lrt = glmLRT(fit, coef = 3)
+lrt = glmLRT(fit, coef = 3:19)
 topTags(lrt)
 ```
 
