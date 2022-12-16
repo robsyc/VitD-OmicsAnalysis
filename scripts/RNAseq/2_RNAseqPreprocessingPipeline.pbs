@@ -18,10 +18,9 @@ cd $VSC_DATA_VO/Courses/AHTA/Group11/RNAseq
 # Make a directory to store fastqc output
 mkdir 2_fastqc
 
-
 # Download pre-built human annotation file & reference
 wget https://ftp.ensembl.org/pub/release-108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.gtf.gz
-wget https://ftp.ensembl.org/pub/release-108/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
+#wget https://ftp.ensembl.org/pub/release-108/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
 # Unzip
 pigz -d *.gz
 
@@ -34,10 +33,8 @@ kallisto index -i Homo_sapiens_index Homo_sapiens_PseudoTranscriptome.fa
 # Make a directory to store kallisto logs
 mkdir kallisto_logs
 
-# For loop over all samples
-for ID in SRR2042582 SRR2042583 SRR2042588 SRR2042589
 # This for loop will loop over the variables after "in" each time attributing the value SRRXXX as to $ID
-do 
+while read ID; do 
 	# Echo the ID you are processing
 	echo $ID
 	
@@ -68,28 +65,29 @@ do
 	rm $ID.fastq
 	rm $ID\_trimQuality.fastq
 	rm $ID\_trimBoth.fastq
-done
+
+done < $HOME/ahta/project/VitD-OmicsAnalysis/data/annotation/GSE69284/acc_list.txt
 
 
 # remove reference files
-rm Homo_sapiens_PseudoTranscriptome.fa
-rm Homo_sapiens_index
-rm Homo_sapiens.GRCh38.108.gtf
-rm Homo_sapiens.GRCh38.dna.toplevel.fa
+#rm Homo_sapiens_PseudoTranscriptome.fa
+#rm Homo_sapiens_index
+#rm Homo_sapiens.GRCh38.108.gtf
+#rm Homo_sapiens.GRCh38.dna.toplevel.fa
 
 
 # Make directory to output all alignment
-mkdir kallisto_quant
+#mkdir kallisto_quant
 # Put all kallisto output files in one directory
-for ID in SRR2042582 SRR2042583 SRR2042588 SRR2042589
-do
-	mv $ID\_quant/abundance.h5 kallisto_quant/$ID\_abundance.h5
-	mv $ID\_quant/abundance.tsv kallisto_quant/$ID\_abundance.tsv
-	mv $ID\_quant/run_info.json kallisto_quant/$ID\_run_info.json
-	rm -r $ID\_quant
-done
+#for ID in SRR2042582 SRR2042583 SRR2042588 SRR2042589
+#do
+#	mv $ID\_quant/abundance.h5 kallisto_quant/$ID\_abundance.h5
+#	mv $ID\_quant/abundance.tsv kallisto_quant/$ID\_abundance.tsv
+#	mv $ID\_quant/run_info.json kallisto_quant/$ID\_run_info.json
+#	rm -r $ID\_quant
+#done
 
 
 # Use multiqc to make an overview of all quality control and log files performed 
-mkdir 2_multiqc
-multiqc --outdir 2_multiqc .
+#mkdir 2_multiqc
+m#ultiqc --outdir 2_multiqc .
