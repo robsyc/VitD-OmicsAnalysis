@@ -21,11 +21,15 @@ TODO
 htmltools::includeHTML("./stats/RNAseq/GSE69284/2_multiqc/multiqc_report.html")
 ```
 
+### Mapping statistics
+
+TODO
+
 ## Analysis
 
 ### Loading Libraries
 
-```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
+```{r echo=FALSE, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 # install packages if not yet installed.
 pkgs <- c("txmport", "dplyr", "edgeR", "biomaRt")
 notInstalled <- pkgs[!pkgs %in% installed.packages()[,1]]
@@ -40,6 +44,7 @@ library(biomaRt)
 ```
 
 ### Pseudo count table
+
 Kallisto transcript mapping was performed to generate a pseudo-count table.
 
 The transcript annotation data is extracted.
@@ -66,7 +71,6 @@ The Kallisto pseudoalignment data is loaded.
 Search for the Kallisto output files.
 
 ```{r}
-
 files <- list.files("./stats/RNAseq/GSE69284", recursive=TRUE)
 
 abundance_files <- grep("abundance_bis.tsv", files, value=TRUE)
@@ -74,7 +78,6 @@ samples <- gsub("(.*)_quant.*", "\\1", abundance_files, perl=TRUE)
 abundance_files <- paste(rep("./stats/RNAseq/GSE69284/"), abundance_files, sep="")
 
 names(abundance_files) <- samples
-abundance_files
 ```
 
 Load RNAseq data
@@ -91,6 +94,7 @@ dim(txi$counts)
 #### Duplicates
 
 Check for duplicate gene counts?
+
 TODO: check video
 
 ```{r}
@@ -104,6 +108,7 @@ TODO: sum technical replicates?
 
 General sample annotation file was provided.  
 A case-control study was performed with 3 different treatment groups (2.5, 4, and 24 hour exposure) in the THP-1 cell line. The treatment time will be added as a factor during statistical analysis.
+
 ```{r}
 RNAseq_annot <- read.csv("./data/annotation/GSE69284/SraRunTable.txt")
 colnames(RNAseq_annot)
@@ -138,7 +143,7 @@ dge$sample
 
 ```{r}
 design <- model.matrix(~time * treatment, annotation)
-rownames(design) = colnames(dge)
+rownames(design) <- colnames(dge)
 design
 ```
 
@@ -209,7 +214,7 @@ testsF <- apply(L, 2, function(fit,contrast)
 
 topTablesF<- lapply(testsF, topTags, n=nrow(dge))
 
-sig_counts = sapply(topTablesF, function(x) sum(x$table$FDR< 0.05))
+sig_counts <- sapply(topTablesF, function(x) sum(x$table$FDR< 0.05))
 sig_counts
 ```
 
@@ -243,10 +248,18 @@ TODO: some of these plots might seem a bit weird.
 
 ### Checks
 
+Convert gene symbol into ensembl id.
+
 ```{r}
-genes2.5h = topTablesF$treatmentVitD$table
-genes4h = topTablesF$`treatmentVitD + time4h:treatmentVitD`$table
-genes24h = topTablesF$`treatmentVitD + time24h:treatmentVitD + time4h:treatmentVitD`$table
+symbol2ensembl = function(x) {
+  return(data[data$external_gene_name == x, "ensembl_gene_id"][1])
+}
+```
+
+```{r}
+genes2.5h <- topTablesF$treatmentVitD$table
+genes4h <- topTablesF$`treatmentVitD + time4h:treatmentVitD`$table
+genes24h <- topTablesF$`treatmentVitD + time24h:treatmentVitD + time4h:treatmentVitD`$table
 ```
 
 TODO: actual interpretation
@@ -328,3 +341,86 @@ genes4h[gene,]$FDR
 genes24h[gene, ]$FDR
 ```
 Indeed, only significant after 4h of treatment.
+
+ 
+#### THBD
+
+Significant gene from the GSE5145 microarray dataset.
+
+- THBD: ENSG00000178726
+- PEAK1: 
+
+```{r}
+
+
+gene <- symbol2ensembl("THBD")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+
+gene <- symbol2ensembl("PEAK1")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+
+gene <- symbol2ensembl("SULT1C2")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+```
+
+### Comparisons
+#### With microarray data
+
+```{r}
+# go over all the genes from the microarray dataset.
+# TODO: get the significant genes
+
+counts <- 0
+
+for (symbol in df$Gene.symbol) {
+  id <- symbol2ensembl(symbol)
+  
+  if (!(id %in% rownames(genes24h))) {
+    next
+  }
+  
+  if(genes24h[id, ]$FDR < 0.05) {
+    counts <- counts + 1
+  }
+}
+
+counts
+```
+
+#### With other RNAseq dataset
+
+```{r}
+# go over all the genes from the microarray dataset.
+# TODO: get the significant genes
+
+counts <- 0
+
+for (gene in rownames(result)) {
+
+  if (!(gene %in% rownames(genes24h))) {
+    next
+  }
+  
+  if(genes24h[gene, ]$FDR < 0.05) {
+    counts <- counts + 1
+    print(gene)
+  }
+}
+
+counts
+```

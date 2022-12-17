@@ -8,7 +8,7 @@ output: html_document
 # Introduction
 ## Project Overview
 Group number: 11
-Group memebers: Robbe Claeys & Simon Bil  
+Group members: Robbe Claeys & Simon Bil  
 
 **Research question:** An omics-wide analysis of Vitamin D difieciency.
 
@@ -61,7 +61,7 @@ table_general_info
 
 Loading all libraries
 
-```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
+```{r echo = False, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
 library(htmltools)
 
 # for microarrays
@@ -75,17 +75,42 @@ library(tximport)
 library(dplyr)
 library(edgeR)
 
-# for ChIP seq
+library(ggplot2)
 
 ```
 
-# Microarray Data - GSE5145
+# Microarray Data
 
 ## General info
 
 This dataset was generated in 2007 and aimed to identify the genes regulated by Vit D in primary bronchial smooth muscle cells. Cells were treated for 24 hours with 100 nM of Vit D3. The experiment was done in triplicate form (a total of 6 samples were analyzed). All samples of this study were used for our data analysis.
 
 **Microarray type:** Affymetrix Human Genome U133 Plus 2.0 Array [HG-U133_Plus_2]
+
+## Download & Extract the data
+
+```{r eval=FALSE}
+url = "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE5145&format=file"
+tf = tempfile()
+download.file(url, tf)
+untar(tarfile=tf, exdir="./data/microarray/GSE5145")
+unlink(tf)
+```
+
+Download annotation file.
+
+```{r eval=FALSE}
+url = "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE5nnn/GSE5145/soft/GSE5145_family.soft.gz"
+download.file(url, "./data/microarray/GSE5145/GSE5145_family.soft.gz")
+```
+
+Extract the .gz files.
+
+```{r eval=FALSE}
+l <- list.files("./data/microarray/GSE5145", pattern=".+\\.gz",  full.names = TRUE)
+print(l)
+lapply(l, function(x) { gunzip(x, overwrite=TRUE) } )
+```
 
 ## Intensity values
 
@@ -116,7 +141,7 @@ head(exprs(arrayRma))
 We will be investigating differential expression between Vit D deficient and normal primary bronchial smooth muscle cell samples. No other confounding factors are present in the sample annotation. All primary bronchial smooth muscle cells were derived from the same tissue sample of a 31 year old Hispanic male.
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
-annot <- getGEO(filename = "./data/annotation/GSE5145/GSE5145_family.soft")
+annot <- getGEO(filename = "./data/microarray/GSE5145/GSE5145_family.soft")
 
 IDs <- annot@header$sample_id
 titles <- c()
@@ -192,7 +217,7 @@ for (topIndex in 1:topNumber) {
   probeID <- rownames(table)[topIndex]
   annotIndex <- grep(probeID, allProbeIDs)
   
-  if (!(allGeneIDs[annotIndex] %in% geneIDs) & (probeID %in% allProbeIDs)) {
+  if (!(allGeneIDs[annotIndex] %in% geneIDs) && (probeID %in% allProbeIDs)) {
     geneIDs <- append(geneIDs, allGeneIDs[annotIndex[1]])
     geneSym <- append(geneSym, allGeneSym[annotIndex[1]])
     logFCs <- append(logFCs, table[[1]][topIndex])
@@ -326,6 +351,7 @@ When comparing these findings to those reported in the original paper, only a fe
 TODO: include other file?
 
 # RNAseq Data - E-MTAB-9789
+
 ## General info
 This dataset was generated in 2021 and aimed to identify genes regulated by Vit D in saline-injected skin of healthy old adults through RNA sequence analysis before and after Vit D3 supplementation. The study wanted to verify whether Vitamin D insufficiency may exacerbate non-specific inflammation observed in older adults. This data set originally contained 112 samples from 57 individuals, this was reduced to 32 samples from 16 individuals for our analysis.
 
@@ -334,6 +360,8 @@ Due to the HPC downtime, pre-generated count tables were used as a starting poin
 - Read length: 41bp
 - Single/paired end sequencing: paired end sequencing
 - Platform used: Illumina NextSeq500
+
+## Download the data
 
 ## Loading count data
 The count data was downloaded and 32 samples (from 16 individuals) were selected.
@@ -347,8 +375,8 @@ head(annot)
 individuals <- factor(annot$Characteristics.individual.)
 treatments <- factor(annot$Factor.Value.compound.)
 treatments <- relevel(treatments, ref = "none")
-#genders <- factor(annot$Characteristics.sex.)
-#ages <- annot$Characteristics.age.
+genders <- factor(annot$Characteristics.sex.)
+ages <- annot$Characteristics.age.
 ```
 
 Gender, age, and the measured Vit D serum levels (before and after treatment) are possible confounding factors that can be added to the model. We chose not to add measured Vit D serum levels to reduce complexity.
@@ -443,6 +471,7 @@ plotMDS(y, col = as.numeric(treatments))
 ```
 
 ## Estimating the dispersion
+
 The negative binomial distribution, is characterized by a dispersion parameter. The average dispersion over all genes is estimated:
 
 ```{r}
@@ -458,16 +487,23 @@ To determine differentially expressed genes, genewise GLMs are fitted:
 ```{r}
 # Fit a generalized linear model (GLM) using the design matrix
 fit <- glmQLFit(y, design)
+
 # Perform likelihood ratio tests to identify differentially expressed genes (coef = 2 => treated vs non-treated)
-lrt <- glmLRT(fit, coef = 2)
+lrt <- glmQLFTest(fit, coef=2)
+
 # View the results of the likelihood ratio tests
-result <- topTags(lrt, n = 500)
-result <- result[result[["table"]][["FDR"]] < 0.05,]
+result <- topTags(lrt, n=nrow(dge))
 result
+resultsig <- result[result[["table"]][["FDR"]] < 0.05,]
+resultsig
+```
+```{r}
+lrt$table %>% 
+      ggplot(aes(x=PValue)) + 
+      geom_histogram(breaks =seq(0,1,.1) ,col=1)
 ```
 
 After FDR-correction, 239 significant differentially expressed genes could be determined.
-
 
 We check whether there was a genuine need to adjust for the experimental individuals. We do this by testing for differential expression between the individuals. There is considerable differential expression, justifying our decision to adjust for the batch effect:
 
@@ -480,55 +516,8 @@ topTags(lrt)
 ---
 
 # RNAseq Data - GSE69284
-## General info
-This dataset was generated in 2016 and aimed to identify genes regulated by Vit D in the human monocytic THP-1 cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 2.5 / 4 / 24 h. This study was performed on 18 samples (in triplicate form), 4 of which were used for our data analysis.
 
-- Read length: 51bp
-- Single/paired end sequencing: single end sequencing
-- Platform used: Illumina NextSeq500
-
-## Quality control
-A MultiQC quality control was performed and mapping statistics are provided through the kallisto log output.
-
-```{r, echo = FALSE, results='asis'}
-htmltools::includeHTML("./stats/RNAseq/2_multiqc/multiqc_report.html")
-```
-
-## Pseudo count table
-Kallisto transcript mapping was performed to generate a pseudo-count table.
-
-The transcript annotation data is extracted.
-
-```{r}
-# annotation data
-GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org", dataset="hsapiens_gene_ensembl")
-# attributes
-atr <- listAttributes(GRCh38)
-data <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'external_gene_name'), mart = GRCh38)
-
-tx2geneGtf <- select(data, ensembl_transcript_id, ensembl_gene_id)
-tx2geneGtf <- rename(tx2geneGtf, TXNAME = ensembl_transcript_id)
-tx2geneGtf <- rename(tx2geneGtf, GENEID = ensembl_gene_id)
-head(tx2geneGtf)
-```
-
-The Kallisto pseudoalignment data is loaded.
-
-```{r}
-## get file locations
-files <- list.files("./stats/RNAseq/kallisto_quant/")                                   # all files in quant folder
-files <- files[grep("abundance.tsv", files)]                                            # filter for .tsv files
-samples <- unlist(strsplit(files, "_")) [c(1:length(files)) * 2-1]                      # cut out sample ID
-files <- paste(rep("./stats/RNAseq/kallisto_quant/", length(files)), files, sep="")     # add whole path
-names(files) <- samples                                                                 # add sample ID as name
-
-## load RNAseq data
-txi <- tximport(files, type = "kallisto", tx2gene = tx2geneGtf)
-
-head(txi$counts)
-dim(txi$counts)
-```
-
+TODO: link separate file
 
 ## Annotation
 General sample annotation file was provided.  
