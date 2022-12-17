@@ -496,7 +496,7 @@ result <- topTags(lrt, n=nrow(dge))
 result
 resultsig <- result[result[["table"]][["FDR"]] < 0.05,]
 resultsig
-```
+```?
 ```{r}
 lrt$table %>% 
       ggplot(aes(x=PValue)) + 
