@@ -367,6 +367,23 @@ Due to the HPC downtime, pre-generated count tables were used as a starting poin
 The count data was downloaded and 32 samples (from 16 individuals) were selected.
 
 ```{r}
+# loading the annotation file
+annot <- read.table("./data/RNAseq2/E-MTAB-9789.sdrf.txt", header = TRUE, sep = "\t")
+# removing duplicate entries (replicate correction has already been performed)
+annot <- annot[!duplicated(annot[ , "Derived.Array.Data.File"]),]
+# sort based on individual
+annot <- annot[order(annot$Characteristics.individual.), ]
+
+print(annot[c("Source.Name", "Characteristics.individual.", "Factor.Value.compound.")])
+
+# select and factorize variables we wish to incorporate in the model
+individuals <- factor(annot$Characteristics.individual.)
+treatments <- factor(annot$Factor.Value.compound.)
+treatments <- relevel(treatments, ref = "none")
+```
+
+
+```{r}
 # first loading the annotation file
 annot <- read.csv("./data/RNAseq/E-MTAB-9789.csv", header = TRUE, sep = ",")
 head(annot)
@@ -375,11 +392,9 @@ head(annot)
 individuals <- factor(annot$Characteristics.individual.)
 treatments <- factor(annot$Factor.Value.compound.)
 treatments <- relevel(treatments, ref = "none")
-genders <- factor(annot$Characteristics.sex.)
-ages <- annot$Characteristics.age.
 ```
 
-Gender, age, and the measured Vit D serum levels (before and after treatment) are possible confounding factors that can be added to the model. We chose not to add measured Vit D serum levels to reduce complexity.
+Gender, age, and the measured Vit D serum levels (before and after treatment) are possible confounding factors that can be added to the model. We chose to only correct for individual in order to reduce complexity.
 
 ```{r}
 # loading the counts & generating a table
@@ -389,22 +404,22 @@ for (row in 1:nrow(annot)) {
   # get required entry information for generating count table
   indiv <- annot[row,]$Characteristics.individual.
   treatment <- annot[row,]$Factor.Value.compound.
-  filePath <- annot[row,]$Derived.Array.Data.File
+  filePath <- paste("./data/RNAseq2/txts/", annot[row,]$Derived.Array.Data.File, sep = "")
   if (treatment == "none") {
     treatment <- "0"
   } else {
     treatment <- "1"
   }
-  colName <- paste(treatment, indiv, sep = "_")
-  counts <- read.table(paste("./data/RNAseq/txts/", filePath, sep = ""), sep = "\t", header = FALSE)$V2
+  colName <- paste(row, treatment, indiv, sep = "_")
+  counts <- read.table(filePath, sep = "\t", header = FALSE)$V2
   df[,colName] <- counts
 }
 
 # name rownames (= gene names)
-rowNames <- read.table("./data/RNAseq/txts/AD006S6_S5.txt", sep = "\t", header = FALSE)$V1
+rowNames <- read.table("./data/RNAseq2/txts/AD006S6_S5.txt", sep = "\t", header = FALSE)$V1
 rownames(df) <- rowNames
 # remove temporary nrow column
-df <- df[,-1]
+df <- subset(df, select = - matrix.nrow...23402.)
 head(df)
 ```
 
@@ -429,11 +444,10 @@ Distances on an MDS plot of a DGEList object correspond to leading log-fold-chan
 Before we fit GLMs, we need to define our design matrix based on the experimental design. We want to test for differential expressions between Vit D treated and non-treated samples within batches, i.e. adjusting for differences between patients. In statistical terms, this is an additive linear model. So the design matrix is created as:
 
 ```{r}
-# Create a design matrix that includes the treatment and confounding factors
+# Create a design matrix that includes the treatments and patients
 design <- model.matrix(~ treatments + individuals)
 #design <- model.matrix(~ treatments)
 rownames(design) <- colnames(df)
-head(design)
 ```
 
 ## Filter and normalize count data
@@ -489,18 +503,17 @@ To determine differentially expressed genes, genewise GLMs are fitted:
 fit <- glmQLFit(y, design)
 
 # Perform likelihood ratio tests to identify differentially expressed genes (coef = 2 => treated vs non-treated)
-lrt <- glmQLFTest(fit, coef=2)
+lrt <- glmQLFTest(fit, coef = 2)
 
 # View the results of the likelihood ratio tests
-result <- topTags(lrt, n=nrow(dge))
+result <- topTags(lrt, n = nrow(y))
 result
 resultsig <- result[result[["table"]][["FDR"]] < 0.05,]
 resultsig
-```?
-```{r}
+
 lrt$table %>% 
-      ggplot(aes(x=PValue)) + 
-      geom_histogram(breaks =seq(0,1,.1) ,col=1)
+      ggplot(aes(x = PValue)) + 
+      geom_histogram(breaks = seq(0, 1, .1) , col = 1)
 ```
 
 After FDR-correction, 239 significant differentially expressed genes could be determined.
@@ -524,7 +537,7 @@ General sample annotation file was provided.
 A case-control study was performed with 3 different treatment groups (2.5, 4, and 24 hour exposure) in the THP-1 cell line. The treatment time will be added as a factor during statistical analysis.
 ```{r}
 RNAseq_annot <- read.csv("./data/annotation/GSE69284/SraRunTable.txt")
-print(RNAseq_annot[c("Run", "Treatment", "treatment_time")])
+print(RNAseq_annot[c("Run", "TREATMENT", "Treatment_Time")])
 ```
 
 ---
