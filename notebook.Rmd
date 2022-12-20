@@ -376,7 +376,7 @@ individuals <- factor(annot$Characteristics.individual.)
 treatments <- factor(annot$Factor.Value.compound.)
 treatments <- relevel(treatments, ref = "none")
 genders <- factor(annot$Characteristics.sex.)
-ages <- annot$Characteristics.age.
+ages <- factor(annot$Characteristics.age.)
 ```
 
 Gender, age, and the measured Vit D serum levels (before and after treatment) are possible confounding factors that can be added to the model. We chose not to add measured Vit D serum levels to reduce complexity.
@@ -475,7 +475,7 @@ plotMDS(y, col = as.numeric(treatments))
 The negative binomial distribution, is characterized by a dispersion parameter. The average dispersion over all genes is estimated:
 
 ```{r}
-y <- estimateDisp(y, design)
+y <- estimateDisp(y, design, robust=TRUE)
 plotBCV(y)
 ```
 
@@ -486,7 +486,7 @@ To determine differentially expressed genes, genewise GLMs are fitted:
 
 ```{r}
 # Fit a generalized linear model (GLM) using the design matrix
-fit <- glmQLFit(y, design)
+fit <- glmQLFit(y, design, robust=TRUE)
 
 # Perform likelihood ratio tests to identify differentially expressed genes (coef = 2 => treated vs non-treated)
 lrt <- glmQLFTest(fit, coef=2)
@@ -496,7 +496,9 @@ result <- topTags(lrt, n=nrow(dge))
 result
 resultsig <- result[result[["table"]][["FDR"]] < 0.05,]
 resultsig
-```?
+```
+
+
 ```{r}
 lrt$table %>% 
       ggplot(aes(x=PValue)) + 
