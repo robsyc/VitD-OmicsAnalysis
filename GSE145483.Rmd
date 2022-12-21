@@ -25,7 +25,7 @@ Load the sample data
 # anotation data
 data_anot = read.table("./data/annotation/GSE145483/Annotation_Infinium.txt", header = TRUE, sep = "\t")
 # infinium data
-data_inf = readEPIC("./data/arrayGSE145483/")
+data_inf = readEPIC("./data/array145483/")
 ```
 
 Initial data exploration

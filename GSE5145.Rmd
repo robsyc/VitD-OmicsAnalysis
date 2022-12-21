@@ -1,0 +1,254 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Microarray Data - GSE5145
+
+## General info
+
+This dataset was generated in 2007 and aimed to identify the genes regulated by Vit D in primary bronchial smooth muscle cells. Cells were treated for 24 hours with 100 nM of Vit D3. The experiment was done in triplicate form (a total of 6 samples were analyzed). All samples of this study were used for our data analysis.
+
+**Microarray type:** Affymetrix Human Genome U133 Plus 2.0 Array [HG-U133_Plus_2]
+
+## Preparation
+
+### Loading Libraries
+
+```{r}
+library(ggplot2)
+library(oligo)
+library(GEOquery)
+library(arrayQualityMetrics)
+library(limma)
+```
+
+### Download and Extract Data
+
+Download and extract microarray .CEL files.
+
+```{r eval=FALSE}
+url = "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE5145&format=file"
+tf = tempfile()
+download.file(url, tf)
+untar(tarfile = tf, exdir = "./data/array5145/")
+unlink(tf)
+
+l <- list.files(
+  "./data/microarray/GSE5145", pattern = ".+\\.gz",  full.names = TRUE)
+print(l)
+lapply(l, function(x) { gunzip(x, overwrite = TRUE) } )
+```
+
+Download and extract annotation file.
+
+```{r eval=FALSE}
+url = "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE5nnn/GSE5145/soft/GSE5145_family.soft.gz"
+download.file(url, "./data/annotation/GSE5145/GSE5145_family.soft.gz")
+
+l <- list.files(
+  "./data/annotation/GSE5145", pattern = ".+\\.gz",  full.names = TRUE)
+print(l)
+lapply(l, function(x) { gunzip(x, overwrite=TRUE) } )
+```
+
+### Load the Data
+
+The .CEL files are loaded into an array object.
+
+```{r echo = T, results = 'hide', error=FALSE, warning=FALSE, message=FALSE}
+exonCELs <- list.celfiles("./data/array5145/")
+arrayRaw <- read.celfiles(
+  paste(rep("./data/array5145/", length(exonCELs)), exonCELs, sep = ""))
+```
+
+The differential expression between Vit D treated and untreated primary bronchial smooth muscle cell samples will be investigated. According to the annotation provided, no confounding factors are present. All cells were derived from the same tissue sample of a 31 year old Hispanic male. 
+
+```{r error=FALSE, warning=FALSE, message=FALSE}
+annot <- getGEO(filename = "./data/annotation/GSE5145/GSE5145_family.soft")
+
+IDs <- annot@header$sample_id
+titles <- c()
+
+for (id in IDs) {
+  title <- annot@gsms[[id]]@header[["title"]]
+  titles <- append(titles, title)
+}
+data.frame(IDs, titles)
+```
+
+## Data exploration
+
+The dimensions and a general overview of the data is generated. The first three `.CEL` files correspond to the Vit D deficient samples, the last three are the control samples.
+
+```{r}
+print(
+  paste(
+    "Array matrix dimensions:", 
+    dim(exprs(arrayRaw))[1], 'x', 
+    dim(exprs(arrayRaw))[2], sep = ' '))
+data.frame(head(exprs(arrayRaw)))
+```
+
+### Data Extraction
+
+Expression values are extracted using the robust multichip average method (RMA) and prode IDs are mapped to their corresponding probe set.
+
+```{r}
+arrayRma = rma(arrayRaw)
+
+print(
+  paste(
+    "Array matrix dimensions after summarization:", 
+    dim(exprs(arrayRma))[1], 'x', 
+    dim(exprs(arrayRma))[2], sep = ' '))
+data.frame(head(exprs(arrayRma)))
+```
+
+All probes were mapped to unique genes.
+
+```{r}
+sum(duplicated(rownames(arrayRma)))
+```
+
+### Quality Control
+
+Quality of the array is assessed using the `arrayQualityMetrics` package. From this analysis we can conclude that the overall quality of the arrays is quite good. However, sample 6 shows some signs of being an outlier, and the graph on figure 7 (Standard deviation versus rank of the mean) shows a slight upward trend, which is symptomatic of a saturation of the intensities.
+
+```{r}
+arrayQualityMetrics(expressionset = arrayRma,
+                    outdir = "./stats/Microarray/GSE5145/",
+                    force = TRUE)
+```
+
+The data distributions also conform to these findings.
+
+```{r}
+boxplot(exprs(arrayRma))
+```
+
+## Differential Expression Analysis
+
+### Model Fitting
+
+LIMMA is performed to find differentially expressed genes.
+
+```{r}
+# design matrix
+design <- model.matrix(~ factor(c(1, 1, 1, 0, 0, 0)))
+colnames(design) <- c("Intercept", "Treatment")
+fit <- lmFit(arrayRma, design)
+```
+
+To make a pair-wise comparison between the two groups the appropriate contrast matrix is created.
+
+```{r}
+contrast.matrix <- makeContrasts(Treatment, levels = design)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+```
+
+### Identifying Top Differentially Expressed Genes
+
+A list of top genes differential expressed in the Control versus treatment group can now be obtained.
+
+The best probe (203887_s_at) is expressed 10^3 times more in the treated group (log fold change).
+
+```{r}
+topNumber <- 1000
+table <- topTable(
+  fit2, 
+  coef = 1, 
+  number = topNumber, 
+  adjust = "BH") # FDR correction of p-values
+
+sig_table <- table[table["adj.P.Val"] < 0.05, ]
+
+print(paste("Significant genesets after FDR correction:", dim(sig_table)[1]))
+head(sig_table)
+```
+
+The vulcano plot shows that significant differentially expressed genes are primarily overexpressed.
+
+```{r}
+ggplot(table, aes(x = logFC, y = -log10(P.Value), color = adj.P.Val < 0.05)) + 
+  geom_point() + 
+  scale_color_manual(values = c("black","red")) + 
+  ggtitle("Vulcano plot of significant values")
+```
+
+
+## Summarization at the gene level
+
+The probe sets are converted to the gene level. Many genes are only represented by a single probe set, but for some genes multiple probe sets are present
+
+```{r}
+# input data (all of equal length)
+allProbeIDs <- annot@gpls[["GPL570"]]@dataTable@table[["ID"]]
+allGeneIDs <- annot@gpls[["GPL570"]]@dataTable@table[["ENTREZ_GENE_ID"]]
+allGeneSym <- annot@gpls[["GPL570"]]@dataTable@table[["Gene Symbol"]]
+allGeneOnt <- 
+  annot@gpls[["GPL570"]]@dataTable@table[["Gene Ontology Biological Process"]]
+```
+
+```{r warning=FALSE}
+# desired data
+geneIDs <- c()
+geneSym <- c()
+logFCs <- c()
+geneOnt <- c()
+
+for (topIndex in 1:topNumber) {
+  probeID <- rownames(sig_table)[topIndex]
+  annotIndex <- grep(probeID, allProbeIDs)
+  
+  if (!(allGeneIDs[annotIndex] %in% geneIDs) && (probeID %in% allProbeIDs)) {
+    geneIDs <- append(geneIDs, allGeneIDs[annotIndex[1]])
+    geneSym <- append(geneSym, allGeneSym[annotIndex[1]])
+    logFCs <- append(logFCs, table[[1]][topIndex])
+    geneOnt <- append(geneOnt, allGeneOnt[annotIndex[1]])
+  } 
+}
+
+df <- data.frame(
+  Entrez.gene.ID = geneIDs, 
+  Gene.symbol = geneSym, 
+  Fold.Change = logFCs, 
+  Gene.ontology = geneOnt)
+
+print(paste("Number of significant genes:", dim(df)[1], sep = ' '))
+head(df)
+```
+
+The significant probe sets could be mapped to 534 individual genes, which were mostly upregulated after Vit D treatment. Many of these genes have a role in high-level signal transduction (cell cyle, metabolism, differentiation). This is a first indication that Vit D is an important nutrient with pleiotropic regulatory effects in the cell.
+
+When comparing these findings to those reported in the original paper, the same upregulated genes were found.
+
+## Gene Set Analysis
+
+The genes are grouped into gene sets to identify pathways regulated by Vit D.
+
+```{r}
+# filter out NA values
+res <- kegga(de = df$Entrez.gene.ID,
+             universe = allGeneIDs,
+                 species.KEGG = "hsa")
+res <- res[order(res$N),]
+    
+res$FDR.DE <- p.adjust(res$P.DE, n = nrow(res), method = "BH")
+
+print(paste("Number of significant gene sets:", dim(res)[1], sep = ' '))
+print(head(res[order(res$DE, decreasing = TRUE),]))
+```
+
+## Save Results
+
+The resulting genes and gene sets are saved for further comparison with the other omics methods.
+
+```{r}
+# saving significant genes
+write.csv(df, file = "./results/GSE5145/array5145_genes.csv")
+
+# saving significant gene sets
+write.csv(res, file = "./results/GSE5145/array5145_genesets.csv")
+```

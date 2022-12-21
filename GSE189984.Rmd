@@ -1,15 +1,18 @@
 # RNAseq Data - GSE189984
 
 ## General info
-This dataset (GSE189984) was generated in 2022 and aimed to identify genes regulated by Vit D in the human peripheral blood mononuclear (PBMC) cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 4 / 8 / 24 / 48 h. This study was performed on 24 samples (in triplicate form).
+
+This dataset was generated in 2022 and aimed to identify genes regulated by Vit D in the human peripheral blood mononuclear (PBMC) cell line. Expression profiling was performed through high throughput RNA sequencing after treatment with Vit D3 for 4 / 8 / 24 / 48 h. This study was performed on 24 samples (in triplicate form).
 
 - Read length: 75bp
 - Single/paired end sequencing: single end sequencing
-- Platform used: Illumina NextSeq500
+- Platform used: Illumina NextSeq 500
 
-Due to time constraints and HPC downtime, already normalized count tables were used instead of aligning the reads ourselves.
+Due to time constraints and HPC downtime, normalized count tables already mapped to a genome were used instead of aligning the reads ourselves.
 
-## Analysis
+The orginal paper by Hanel & Carlberg (2022) includes some general information on quality control and read mapping: Reads were aligned to the reference genome (version GRCh38) with Ensembl annotation (version 103) by using default settings of the nf-core/rnaseq STAR-Salmon pipeline (version 3.0). Ensembl gene identifiers were annotated with gene symbol, description, genomic location and biotype by accessing the Ensembl database (version 104) via the R package BiomaRt (version 2.46.0). Ensembl gene identifiers missing HGNC gene symbol annotation, Entrez ID, genomic location information or being mitochondrially encoded were removed from the data sets. When a gene name appeared more than once, the entry with the highest average gene counts was kept. Read counts were normalized for differences in library size to counts per million (CPM). Genes with very low expression were filtered out by applying the function FilterByExpr(), in order to mitigate the multiple testing problem and to not interfere with the statistical approximations of the EdgeRpipeline. This requirement was fulfilled by 12,305 genes. After filtering, library sizes were recomputed and trimmed mean of M-value normalization was applied.
+
+## Preparation
 
 ### Loading Libraries
 
@@ -27,32 +30,25 @@ library(biomaRt)
 library(ggplot2)
 ```
 
-### Normalized count table
+### Loading Count Table
 
-The already normalized RNAseq count matrix is loaded. The column names of this matrix also contains information about the sample and corresponding treatment.
+The already normalized RNAseq count matrix is loaded. The column names of this matrix contains information about the sample and corresponding treatment.
 
 ```{r}
 # count data
 counts <- read.csv("./data/RNAseq189984/GSE189984_counts.csv", header = TRUE, row.names = 1)
-counts
+print(paste("Count table dimensions:", dim(counts)[1], 'x', dim(counts)[2], sep = ' '))
+head(counts)
 ```
 
-### Preprocessing
-
-#### Duplicates
-
-Check for duplicate gene counts?
-
-TODO: check video
+The count table does not contain any duplicate genes.
 
 ```{r}
 dups = duplicated(rownames(counts))
 sum(dups)
 ```
 
-TODO: sum technical replicates?
-
-#### Annotation
+### Load Annotation Matrix
 
 The transcript annotation data is extracted. This contains gene symbol, ID, description, and other less relevant information (e.g. chromosome).
 
@@ -72,52 +68,44 @@ annotation <- data.frame(
   "treatment" = factor(sapply(annotations, function(x) x[1])),
   "time" = factor(sapply(annotations, function(x) x[2])),
   "replicate" = factor(sapply(annotations, function(x) x[3])),
-  row.names = counts_cols)
-#colnames(annotation) <- c("treatment", "time", "replicate")
-annotation
+  row.names = colnames(counts))
+
+head(annotation)
 ```
 
-Check if the colnames match up in order with the annotation data.
+## Processing
 
-```{r}
-rownames(annotation) == colnames(counts)
-```
-
-## EdgeR Analysis
-TODO: in the practicum we did more steps to accomodate the counts into EdgeR.
-
+An EdgeR object is generated with treatment as a grouping factor.
 
 ```{r}
 dge <- DGEList(counts, group = annotation$treatment)
 head(dge$sample)
 ```
 
-### Design Matrix
-
-```{r}
-design <- model.matrix(~ treatment * time, annotation)
-rownames(design) <- colnames(dge)
-head(design, 2)
-```
+Some differences in library size are observed, this will be accounted for during normalization.
 
 ### Filtering
 
+Filtering is performed with the default `filterByExpr()` function of the EdgeR package.
+
 ```{r}
 keep <- filterByExpr(dge, design)
-print(table(keep))
+table(keep)
 dge <- dge[keep, , keep.lib.sizes = FALSE]
 ```
 
 ### Normalisation
 
+Normalization is performed with the default `calcNormFactors()` function of the EdgeR package.
+
 ```{r}
 dge <- calcNormFactors(dge)
-head(dge$samples)
+dge$samples
 ```
 
-### Data exploration
+### Data Exploration
 
-MDS plot
+An MDS plot, showing sample grouping is generated. A clear distinction between treatments (Vit D or EtOH) and treatment times (4, 8, 24, and 48 h) can be observed. Notably, the untreated samples also seem to cluster based on treatment time.
 
 ```{r}
 limma::plotMDS(
@@ -126,29 +114,39 @@ limma::plotMDS(
   col = as.double(annotation$treatment))
 ```
 
-Observations:
-- maybe no time effect for Ethanol treated samples? but there does seem to be clustering for 4/8 and 24/48
-- time effect for VitD treated samples (expected), clear clustering also shown
+## Analysis
 
+### Design Matrix
 
-### Estimate dispersion
+A design matrix is generated, taking into account treatment and treatment time.
+
+```{r}
+design <- model.matrix(~ treatment * time, annotation)
+rownames(design) <- colnames(dge)
+data.frame(head(design))
+```
+
+### Estimate Dispersion
+
+The dispersion is estimated and a genewise biological coefficient of variation (BCV) plot is generated. Only a very slight trend is observed.
 
 ```{r}
 dge <- estimateDisp(dge, design)  
 plotBCV(dge)
 ```
 
-Looks OK? -> TODO: why, not a real trend
+### Model Fit
 
-### Fit quasi-negative binomial model
+A quasi-negative binomial model is fitted, and a QQ-plot is generated to assess the goodness of fit. Some disturbances in spread can be observed, especially at the higher quantiles.
 
 ```{r}
-fit <- glmQLFit(dge,design)
+fit <- glmQLFit(dge, design)
+gof(fit, plot = TRUE)
 ```
 
-### Define contrasts
+### Contrast Testing
 
-TODO: do the contrasts properly
+A contrast matrix is generated to test significance for any of the selected variables.
 
 ```{r}
 L <- msqrob2::makeContrast(
@@ -163,25 +161,25 @@ L <- msqrob2::makeContrast(
       "treatmentX125D + treatmentX125D:time24h = 0",
       "treatmentX125D + treatmentX125D:time48h = 0"),
     parameterNames = colnames(design))
-head(L, 2)
+head(L, 3)
 ```
 
-Perform Contrast Tests
+Contrast tests are performed and the number of significant values (after multiple testing correction) is determined. Some significant values can be obtained for every contrast that was tested for.
 
 ```{r}
 testsF <- apply(L, 2, function(fit, contrast) 
     glmQLFTest(fit, contrast = contrast), 
     fit = fit)
 
-topTablesF<- lapply(testsF, topTags, n = nrow(dge))
+topTablesF <- lapply(testsF, topTags, n = nrow(dge))
 
-sig_counts <- sapply(topTablesF, function(x) sum(x$table$FDR< 0.05))
+sig_counts <- sapply(topTablesF, function(x) sum(x$table$FDR < 0.05))
 sig_counts
 ```
 
-Expected, there shouldn't really be a time effect? (as Ethanol does nothing?)
+### Assesment of Significance
 
-### Volcano Plots
+Volcano plots are generated to assess significance and general direction of differential expression. Vit D treatment seems to stimulate gene expression, and the time effect seems to play quite and important role (even in the absence of Vit D treatment).
 
 ```{r}
 for (i in 1:ncol(L)){
@@ -191,26 +189,24 @@ for (i in 1:ncol(L)){
 }
 ```
 
-### Histograms of P-values
+P-value histograms are generated to assess the distribution of significant findings for each contrast tested. Once again, it is shown that time effect plays a significant role in the differentiation of expression.
 
 ```{r}
 histsP <- lapply(topTablesF, function(x) 
     x$table %>% 
         ggplot(aes(x = PValue)) + 
-        geom_histogram(breaks = seq(0,1,.1) , col = 1)
+        geom_histogram(breaks = seq(0, 1, .1) , col = 1)
     )
     
 for (i in 1:ncol(L)) 
     histsP[[i]] <- histsP[[i]] +
-    ggtitle(paste("contrast", names(topTablesF)[i]))
+    ggtitle(paste("Histogram of P-values\nfor contrast", names(topTablesF)[i]))
 histsP
 ```
 
-TODO: some of these plots might seem a bit weird.
+### Summarizing & Annotating Results
 
-### Checks
-
-Convert gene symbol into ensembl id.
+The gene symbol has to be converted into Ensembl gene id.
 
 ```{r}
 symbol2ensembl = function(x) {
@@ -218,43 +214,38 @@ symbol2ensembl = function(x) {
 }
 ```
 
-```{r}
-genes4h <- topTablesF$treatmentX125D$table
-genes8h <- topTablesF$`treatmentX125D + treatmentX125D:time4h`$table
-genes24h <- topTablesF$`treatmentX125D + treatmentX125D:time24h`$table
-genes48h <- topTablesF$`treatmentX125D + treatmentX125D:time48h`$table
-```
-
-TODO: actual interpretation
-
-#### Percentages upregulated vs downregulated genes
-
-TODO: why the mismatch?
+Significant genes for each treatment time are extracted and filtered. The fraction of up/down-regulated genes is determined for each of these.
 
 ```{r}
+genes4h <- topTablesF[["treatmentX125D"]][["table"]]
 sig4 = genes4h %>% filter(FDR < 0.05)
 c4up = sig4 %>% filter(logFC > 0) %>% count
 c4 = sig4 %>% count
-print(c4up / c4)
+print(paste("Number of significant genes when treated after 4h:", c4[,1]))
+print(paste("Fraction of up-regulated genes when treated after 4h:", (c4up / c4)[,1]))
 
+genes8h <- topTablesF[["treatmentX125D + treatmentX125D:time08h"]][["table"]]
 sig8 = genes8h %>% filter(FDR < 0.05)
-c8up = sig8 %>% filter(logFC > 0) %>% count - c4up
-c8 = sig8 %>% count - c4
-print(c4)
-print(c4up / c4)
+c8up = sig8 %>% filter(logFC > 0) %>% count
+c8 = sig8 %>% count
+print(paste("Number of significant genes when treated after 8h:", c8[,1]))
+print(paste("Fraction of up-regulated genes when treated after 8h:", (c8up / c8)[,1]))
 
+genes24h <- topTablesF[["treatmentX125D + treatmentX125D:time24h"]][["table"]]
 sig24 = genes24h %>% filter(FDR < 0.05)
-c24up = sig24 %>% filter(logFC > 0) %>% count - c8up - c4up
-c24 = sig24 %>% count - c8 - c4
-print(c24)
-print(c24up / c24)
+c24up = sig24 %>% filter(logFC > 0) %>% count
+c24 = sig24 %>% count
+print(paste("Number of significant genes when treated after 24h:", c24[,1]))
+print(paste("Fraction of up-regulated genes when treated after 24h:", (c24up / c24)[,1]))
 
+genes48h <- topTablesF[["treatmentX125D + treatmentX125D:time48h"]][["table"]]
 sig48 = genes48h %>% filter(FDR < 0.05)
-c48up = sig48 %>% filter(logFC > 0) %>% count - c24up - c8up - c4up
-c48 = sig24 %>% count - c24 - c8 - c4
-print(c48)
-print(c48up / c48)
+c48up = sig48 %>% filter(logFC > 0) %>% count
+c48 = sig48 %>% count
+print(paste("Number of significant genes when treated after 48h:", c48[,1]))
+print(paste("Fraction of up-regulated genes when treated after 48h:", (c48up / c48)[,1]))
 ```
+
 
 #### Number of genes that only become significant after 24h
 In the paper they mention that only after 24h of treatment, 995 genes become significantly expressed.
@@ -382,3 +373,16 @@ for (gene in rownames(result)) {
 
 counts
 ```
+
+## Gene Set Analysis
+
+
+
+## Write Data for Omics Comparison
+
+The results of the gene Set analysis are written out for later comparisons.
+
+```{r}
+
+```
+
