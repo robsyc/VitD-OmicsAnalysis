@@ -1,0 +1,277 @@
+# Microarrays Part 2: Infinium EPIC
+
+We will first be performing a differential methylation analysis between cancer (CAF) & non-malignent (NAF) fibroblasts with Infinium EPIC arrays (+850k probes)
+
+We will be performing data preprocessing, general statistics and normalization. For this we will use the limma.
+
+We will also be perfrorming an SNP calling experiment and copy number assaesment (aCGH).
+
+## Acquiring and exploring the data
+
+For this we will use the lumi and wateRmelon packages
+
+```{r}
+library('lumi')
+library('wateRmelon')
+library('ChAMPdata')
+library('minfi')
+library('IlluminaHumanMethylationEPICanno.ilm10b4.hg19')
+library('IlluminaHumanMethylationEPICmanifest')
+```
+
+Load the sample data
+
+```{r}
+# anotation data
+data_anot = read.table("./data/annotation/GSE145483/Annotation_Infinium.txt", header = TRUE, sep = "\t")
+# infinium data
+data_inf = readEPIC("./data/arrayGSE145483/")
+```
+
+Initial data exploration
+
+```{r}
+# head and dimensions of annotation file and checking if it contains NA values
+dim(data_anot)   # 12 samples  3 columns (ID and Origin)
+head(data_anot)
+is.na(data_anot) # there don't seem to be any NA values
+```
+
+```{r}
+print(data_inf)
+print("beta values:")
+head(betas(data_inf)) # retrieve the beta-values (methylation percentage)
+print("M-values: :")
+head(exprs(data_inf)) # retrieve the M-values
+
+# number of TRUE NA values among these
+sum(is.na(betas(data_inf)))
+sum(!is.na(betas(data_inf)))
+sum(is.na(exprs(data_inf)))
+sum(!is.na(exprs(data_inf)))
+```
+
+
+## Prcoessing the data
+
+In omics data anlysis, we will often run into the presence of missing data (NA) 1277 / 10389739
+=> perform data imputation strategy (i.e. replacing missing values with estimated substitutes)
+=> or just simply remove the features with missing data for some samples
+
+```{r}
+# removing NA values
+# by only keeping rows with row sum = 0 (all FALSE, not NA)
+data_inf = data_inf[rowSums(is.na(exprs(data_inf))) == 0,]
+```
+
+Now we will
+- use the grep function to filter for NAF & CAF samples
+- use sampleNames function to make the names more informative
+
+```{r}
+# take subset
+infdata = data_inf[,c(grep("DC", data_anot[,2]), grep("TL", data_anot[,2]))]
+annot = data_anot[c(grep("DC", data_anot[,2]), grep("TL", data_anot[,2])),]
+
+# change sample names to something more comprehensible
+sampleNames(infdata) = paste(annot[,1], annot[,2], sep = "_")
+```
+
+For microarray experiments, detection p-values are added for each probe.
+We do this with the pfilter function of the wateRmelon package.
+
+```{r}
+infdata.pf = pfilter(infdata)
+```
+
+Now we will perform some general statistics:
+E.g. since beta- and M-values are to an important extent intrinsically normalised, average methylation degree can be compared between
+samples as such.
+
+Comparison of average methylation between control and tumor samples
+
+=> Low dimensional data
+
+We use the boxplot function on the beta values to get a general idea of the distribution of the methylation degrees per sample.
+
+```{r}
+boxplot(betas(infdata), las = 2)
+```
+
+=> High dimensional data
+
+```{r}
+meth_mean_CAF <- rep(0,3)
+meth_mean_NAF <- rep(0,3)
+for (i in 1:ncol(infdata)) {
+  if (i < 4) {
+    meth_mean_CAF[i] <- mean(betas(infdata)[,i])
+  } else {
+    meth_mean_NAF[i-3] <- mean(betas(infdata)[,i])
+  }
+}
+```
+
+
+We now take the mean per sample and compate the values for both control and tumor samples using a Welch t-test.
+
+```{r}
+# the betas(infdata) are ordered CAF, CAF, CAF, NAF, NAF, NAF
+# there might be biological situations where there is much more methylation is your samples vs. controls
+
+t_test_res <- t.test(meth_mean_CAF, meth_mean_NAF, var.equal = FALSE)
+t_test_res
+dat_boxplot <- data.frame(betas = c(meth_mean_CAF, meth_mean_NAF),
+group = c("DC","DC","DC","DC","TL","TL","TL","TL"))
+
+boxplot(betas ~ group, dat_boxplot, las = 2)
+# but not here, we got a p-value of 0.40
+```
+
+## Normalization and QC
+
+The lumi package provides several normalization functions: dasen to adjust for color bias and normalize data.
+
+We will be plotting density distribution and color bias distributions to assess the effect of normalization.
+
+```{r}
+## Perform normalization including dye color adjustment
+infdata.dasen.pf <- dasen(infdata.pf)
+## Make methylumi objects to check density and color bias adjustment
+infdataM <- as(infdata.pf, 'MethyLumiM')
+infdataN <- as(infdata.dasen.pf, 'MethyLumiM')
+
+# make plots
+#jpeg("QC.jpg")
+par(mfrow = c(2,2)) # combine plots -> this makes it look kind of shitty
+plotColorBias1D(infdataM, channel = "both", main = "before")
+plotColorBias1D(infdataN, channel = "both", main = "after") # cleaner!
+density(infdataM, main = "before")
+density(infdataN, main = "after")
+```
+
+## Differential methylation analysis
+
+We use LIMMA on the pre-processed M-values to identify differences in methylation between CAF and NAF (workflow similar to microarray analysis from last work college)
+
+```{r}
+## Build design and contrasts
+des <- factor(as.character(annot[,2]))
+design <- model.matrix(~ 0 + des)
+colnames(design) <- c("Untreated", "Treated")
+
+# To make all pair-wise comparisons between the two groups the appropriate contrast matrix is created.
+
+cont.matrix <- makeContrasts(NvsS = Tumor - Normal, levels = design)
+## Limma
+fit <- lmFit(infdataN,design)
+fit2 <- contrasts.fit(fit,cont.matrix)
+fit2 <- eBayes(fit2)
+
+# A list of top genes differential expressed in group2 (CD) versus group1 (TL) can now be obtained.
+
+## Volcano plot
+#jpeg("Volcanoplot.jpg")
+volcanoplot(fit2)
+## Volcano plot
+#jpeg("MAplot.jpg")
+limma::plotMA(fit2)
+# DE results
+LIMMAout <- topTable(fit2, adjust = "BH", number = nrow(exprs(infdataM)))
+head(LIMMAout)
+## Check M-values for top results
+exprs(infdataN)[rownames(infdataN) %in% rownames(head(LIMMAout)),]
+# note that the probesets are not necessarly in the same order as for the limma output
+```
+
+```{r}
+## Functional annotation of limma results
+############################
+## Load annotation and sort alphabetically on probe name
+data("probe.features.epic")
+annotation_MA <- probe.features
+print(head(annotation_MA))
+annotation_MA <- annotation_MA[sort(rownames(annotation_MA), index.return = T)$ix,]
+
+## Check if all probes are present in both sets
+dim(LIMMAout)
+dim(annotation_MA)
+sum(LIMMAout$Probe_ID %in% rownames(annotation_MA))
+sum(rownames(annotation_MA) %in% LIMMAout$Probe_ID)
+# Also check the reverse so no duplicate rows are present in annotation
+## Since more probes are present in the annotation file, remove unnecessary probes
+annotation_MA <- annotation_MA[rownames(annotation_MA) %in% LIMMAout$Probe_ID,]
+## Sort LIMMA output alphabetically on probe name
+LIMMAout_sorted <- LIMMAout[sort(LIMMAout$Probe_ID, index.return = T)$ix,]
+## Add gene names to LIMMA output
+LIMMAout_sorted$Gene <- annotation_MA$gene
+LIMMAout_sorted$Feature <- annotation_MA$feature
+LIMMAout_sorted$Chrom <- annotation_MA$CHR
+LIMMAout_sorted$Pos <- annotation_MA$MAPINFO
+LIMMAout_sorted$Chrom <- as.character(LIMMAout_sorted$Chrom)
+LIMMAout_sorted$Gene <- as.character(LIMMAout_sorted$Gene)
+LIMMAout_sorted$Feature <- as.character(LIMMAout_sorted$Feature)
+# The data type for these columns is altered to prevent issues further downstream
+```
+
+```{r}
+## Quantification of absolute methylation differences
+############################
+## Check if dimension of objects to combine are the same
+dim(LIMMAout_sorted)
+dim(betas(infdata))
+## Add gene names to LIMMA output
+LIMMAout_sorted$Tumor_meth <- rowMeans(betas(infdata)[rownames(infdata) %in% LIMMAout_sorted$Probe_ID,annot$Origin == "DC"])
+
+LIMMAout_sorted$Control_meth <- rowMeans(betas(infdata)[rownames(infdata) %in% LIMMAout_sorted$Probe_ID,annot$Origin == "TL"])
+
+LIMMAout_sorted$Abs_diff_meth <- abs(rowMeans(betas(infdata)[rownames(infdata) %in% LIMMAout_sorted$Probe_ID, annot$Origin == "DC"]) - rowMeans(betas(infdata)[rownames(infdata) %in% LIMMAout_sorted$Probe_ID, annot$Origin == "TL"]))
+```
+
+```{r}
+## Resort results
+############################
+LIMMAout_annot <- LIMMAout_sorted[sort(LIMMAout_sorted$P.Value, index.return = T)$ix, c(1,12,13,10,11,4,7,8,5,14,15,16)]
+# Sort on p-values to prevent errors in sorting due to equal FDR values
+```
+
+```{r}
+## Interpretation results
+############################
+
+## Select CpGs in genic regions
+sum(LIMMAout_annot$adj.P.Val < 0.05)
+sum(LIMMAout_annot$adj.P.Val[LIMMAout_annot$Gene != ""] < 0.05)
+
+LIMMAout_annot_gene <- LIMMAout_annot[LIMMAout_annot$Gene != "",]
+
+## Check genic results
+head(LIMMAout_annot_gene[c(4,5,6,8,10,11,12)])
+# these columns are selected because they contain the most interesting fields, however you can of course return all as well
+topgenes_genic <- unique(LIMMAout_annot_gene$Gene[1:10])
+for (i in 1:length(topgenes_genic)) {
+  LIMMAout_subset <- LIMMAout_annot_gene[(LIMMAout_annot_gene$Gene == topgenes_genic[i]) & (LIMMAout_annot_gene$adj.P.Val < 0.05) & (abs(LIMMAout_annot_gene$logFC) > 2),]
+  print(LIMMAout_subset[sort(LIMMAout_subset$Pos, index.return = T)$ix, c(4,5,6,8,10,11,12)])
+}
+
+## Select CpGs in promoter regions
+LIMMAout_annot_prom <- LIMMAout_annot_gene[grepl("TSS",LIMMAout_annot_gene$Feature) | (LIMMAout_annot_gene$Feature == "1stExon"),]
+head(LIMMAout_annot_prom)
+
+## Look for multiple CpG in promoter regions undergoing similar methylation differences
+topgenes_prom <- unique(LIMMAout_annot_prom$Gene[1:10])
+for (i in 1:length(topgenes_prom)) {
+  LIMMAout_subset <- LIMMAout_annot_prom[(LIMMAout_annot_prom$Gene==topgenes_prom[i]) & (LIMMAout_annot_prom$adj.P.Val < 0.10),]
+  
+  if(nrow(LIMMAout_subset) > 1) {
+    print(LIMMAout_subset[sort(LIMMAout_subset$Pos,index.return = T)$ix, c(4,5,6,8,10,11,12)])
+    }
+}
+```
+
+
+
+## SNP arrays (optional)
+
+
+## Array comparative genomic hybridization (optional)
