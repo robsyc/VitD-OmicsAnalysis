@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 # RNAseq Data - GSE69284
 
 ## General info
@@ -10,20 +15,46 @@ This dataset (GSE69284) was generated in 2016 and aimed to identify genes regula
 ## Quality control
 A MultiQC quality control was performed and mapping statistics are provided through the kallisto log output.
 
-TODO
+## Preprocessing RNA-seq data
+
+### Trimming with Trimmomatic
+Before mapping, the data was trimmed based on the quality scores:
+
+```
+java -jar $EBROOTTRIMMOMATIC/trimmomatic-0.39.jar SE -threads 8 -phred33 \
+          $ID.fastq $ID\_trimQuality.fastq SLIDINGWINDOW:4:15
+```
+
+And to remove Illumina adapter sequences:
+
+```
+java -jar $EBROOTTRIMMOMATIC/trimmomatic-0.39.jar SE -threads 8 -phred33 \
+          $ID\_trimQuality.fastq $ID\_trimBoth.fastq \
+          ILLUMINACLIP:Adapters.fa:2:30:10
+```
+
+### Summerizing Gene Counts With Kallisto
+
+Read mapping was performed using the Kallisto pseudoalignment tool.
+This tools returns RNA-seq transcript counts, these results will be summerized to gene-level counts for the downstream analysis.
+
+The human reference GRCh38.p13 (release 108) from Ensembl was used to create an index.
+The following command was used to invoke Kallisto:
+
+```
+kallisto quant -i Homo_sapiens_index -o $ID\_quant -t 8 \
+                --single -l 100 -s 1\
+                -g Homo_sapiens.GRCh38.108.gtf $ID\_trimBoth.fastqg
+```
+
+### Preprocessing Statistics
+The statistics of this mapping run are the following:
 
 ```{r}
-
+preprocess_statistics <- read.csv("stats/RNAseq/GSE69284/preprocess.tsv",
+                                  sep="\t")
+preprocess_statistics
 ```
-
-
-```{r, echo = FALSE, results='asis'}
-htmltools::includeHTML("./stats/RNAseq/GSE69284/2_multiqc/multiqc_report.html")
-```
-
-## Generating Counts With Kallisto
-
-TODO
 
 ## Downstream Analysis
 
@@ -31,7 +62,7 @@ TODO
 
 ```{r echo=FALSE, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 # install packages if not yet installed.
-pkgs <- c("txmport", "dplyr", "edgeR", "biomaRt")
+pkgs <- c("tximport", "dplyr", "edgeR", "biomaRt", "limma")
 notInstalled <- pkgs[!pkgs %in% installed.packages()[,1]]
 if(length(notInstalled) > 0){
   BiocManager::install(notInstalled)
@@ -46,17 +77,19 @@ library(biomaRt)
 ### Pseudo count table
 
 Kallisto transcript mapping was performed to generate a pseudo-count table.
+These pseudo-counts are transcript-level counts and need to be summerized into gene-level counts.
 
 The transcript annotation data is extracted.
 
 ```{r}
 # annotation data
-GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org", dataset="hsapiens_gene_ensembl")
+GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org",
+                      dataset="hsapiens_gene_ensembl")
 
 # attributes
 atr <- listAttributes(GRCh38)
-atr
-data <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'external_gene_name'), mart = GRCh38)
+data <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id',
+                             'external_gene_name'), mart = GRCh38)
 
 tx2geneGtf <- dplyr::select(data, ensembl_transcript_id, ensembl_gene_id)
 
@@ -75,31 +108,27 @@ files <- list.files("./stats/RNAseq/GSE69284", recursive=TRUE)
 
 abundance_files <- grep("abundance_bis.tsv", files, value=TRUE)
 samples <- gsub("(.*)_quant.*", "\\1", abundance_files, perl=TRUE)
-abundance_files <- paste(rep("./stats/RNAseq/GSE69284/"), abundance_files, sep="")
+abundance_files <- paste(rep("./stats/RNAseq/GSE69284/"),
+                         abundance_files, sep="")
 
 names(abundance_files) <- samples
 ```
 
-Load RNAseq data
+Load RNAseq data using tximport.
+This function performs gene-level summerization of the transcript counts.
 
 ```{r}
 txi <- tximport(abundance_files, type = "kallisto", tx2gene = tx2geneGtf)
-
-head(txi$counts)
-dim(txi$counts)
 ```
 
-### Preprocessing
-
-#### Duplicates
-
-Check for duplicate gene counts?
+Check for duplicate gene counts
 
 ```{r}
 dups = duplicated(rownames(txi$counts))
 sum(dups)
 ```
 
+As the sum is 0 there are no duplicate gene counts.
 
 #### Annotation
 
@@ -115,8 +144,11 @@ colnames(annotation) <- c("treatment", "time")
 rownames(annotation) <- RNAseq_annot$Run
 
 # convert into factors
-annotation$treatment <- factor(annotation$treatment, levels=c("Ethanol", "100 nM 1\\,25(OH)2D3"), labels=c("Ethanol", "VitD"))
-annotation$time <- factor(annotation$time, levels=c("2.5 h", "4 h", "24 h"), labels=c("2.5h", "4h", "24h"))
+annotation$treatment <- factor(annotation$treatment, 
+                               levels=c("Ethanol", "100 nM 1\\,25(OH)2D3"),
+                               labels=c("Ethanol", "VitD"))
+annotation$time <- factor(annotation$time, levels=c("2.5 h", "4 h", "24 h"),
+                          labels=c("2.5h", "4h", "24h"))
 
 annotation
 ```
@@ -128,7 +160,9 @@ rownames(annotation) == colnames(txi$counts)
 ```
 
 ## EdgeR Analysis
+
 ### Normalisation
+
 As we're working with *pseudocounts* (summerized gene counts from transcript counts), we need to add extra bias correction offsets (based on average transcript length) to make the data fit for EdgeR gene-level analysis.
 
 ```{r}
@@ -139,6 +173,7 @@ normMat <- txi$length
 # changing the magnitude of the counts.
 normMat <- normMat/exp(rowMeans(log(normMat)))
 normCts <- cts/normMat
+
 # Computing effective library sizes from scaled counts, to account for
 # composition biases between samples.
 eff.lib <- calcNormFactors(normCts) * colSums(normCts)
@@ -176,7 +211,8 @@ dge <- dge[keep, , keep.lib.sizes=FALSE]
 MDS plot
 
 ```{r}
-limma::plotMDS(dge,labels=paste(annotation$treatment,annotation$time,sep=" - "),col=as.double(annotation$treatment))
+limma::plotMDS(dge,labels=paste(annotation$treatment,annotation$time,sep=" - "), 
+               col=as.double(annotation$treatment))
 ```
 
 Observations:
@@ -210,7 +246,7 @@ L <- msqrob2::makeContrast(
       "time24h:treatmentVitD = 0",
       "time4h:treatmentVitD = 0",
       "treatmentVitD + time4h:treatmentVitD = 0",
-      "treatmentVitD + time24h:treatmentVitD + time4h:treatmentVitD = 0",
+      "treatmentVitD + time24h:treatmentVitD = 0",
       "time4h = 0",
       "time24h = 0"),
     parameterNames = colnames(design))
@@ -224,13 +260,16 @@ testsF <- apply(L, 2, function(fit,contrast)
     glmQLFTest(fit,contrast=contrast), 
     fit = fit)
 
-topTablesF<- lapply(testsF, topTags, n=nrow(dge))
+topTablesF <- lapply(testsF, topTags, n=nrow(dge))
 
 sig_counts <- sapply(topTablesF, function(x) sum(x$table$FDR< 0.05))
 sig_counts
 ```
 
-Expected, there shouldn't really be a time effect? (as Ethanol does nothing?)
+`time4h` and `time24h` capture the contrasts comparing the time effect on non-treated cells, there shouldn't really be a time effect, which is what is seen by the fact that not a lot of significant genes were found for these contrasts.
+
+Similar to the conclusions on the original paper, there is a considerate time effect on the treatment,
+in the contrast ` there is a lot of expressed genes compared to `treatmentVitD` which only captures the contrast comparing 2.5h treated cells vs 2.5h non-treated cells.
 
 ### Volcano Plots
 
@@ -238,7 +277,10 @@ Expected, there shouldn't really be a time effect? (as Ethanol does nothing?)
 library(ggplot2)
 for (i in 1:ncol(L))
 {
-   volcano<- ggplot(topTablesF[[i]]$table,aes(x=logFC,y=-log10(PValue),color=FDR < 0.05)) + geom_point() + scale_color_manual(values=c("black","red")) + ggtitle(paste("contrast",names(topTablesF)[i]))
+   volcano<- ggplot(topTablesF[[i]]$table, 
+                    aes(x=logFC,y=-log10(PValue),color=FDR < 0.05)) 
+   + geom_point() + scale_color_manual(values=c("black","red")) 
+   + ggtitle(paste("contrast",names(topTablesF)[i]))
 print(volcano)
 }
 ```
@@ -258,7 +300,13 @@ for (i in 1:ncol(L))
 histsP
 ```
 
-TODO: some of these plots might seem a bit weird.
+### Save Results
+
+```{r}
+genes2.5h <- topTablesF$treatmentVitD$table
+genes4h <- topTablesF$`treatmentVitD + time4h:treatmentVitD`$table
+genes24h <- topTablesF$`treatmentVitD + time24h:treatmentVitD`$table
+```
 
 ### Checks
 
@@ -270,64 +318,15 @@ symbol2ensembl = function(x) {
 }
 ```
 
-```{r}
-genes2.5h <- topTablesF$treatmentVitD$table
-genes4h <- topTablesF$`treatmentVitD + time4h:treatmentVitD`$table
-genes24h <- topTablesF$`treatmentVitD + time24h:treatmentVitD + time4h:treatmentVitD`$table
-```
 
-TODO: actual interpretation
+#### Paper result: time effect of treatment
+In the paper they mention a few genes that only express after a certain treatment length.
 
-#### Percentages upregulated vs downregulated genes
-
-In the paper:
-- 2.5h: 100% up
-- 4h: 59% up
-- 24h: 55.1% up
-
-TODO: why the mismatch?
-
-```{r}
-sig2.5 = genes2.5h %>% filter(FDR < 0.05)
-c2.5up = sig2.5 %>% filter(logFC > 0) %>% count
-c2.5 = sig2.5 %>% count
-
-print(c2.5up / c2.5)
-
-sig4 = genes4h %>% filter(FDR < 0.05)
-
-c4up = sig4 %>% filter(logFC > 0) %>% count - c2.5up
-c4 = sig4 %>% count - c2.5
-
-print(c4)
-print(c4up / c4)
-
-
-sig24 = genes24h %>% filter(FDR < 0.05)
-c24up = sig24 %>% filter(logFC > 0) %>% count - c4up - c2.5up
-c24 = sig24 %>% count - c4 - c2.5
-
-print(c24)
-print(c24up / c24)
-
-```
-
-#### Number of genes that only become significant after 24h
-In the paper they mention that only after 24h of treatment, 995 genes become significantly expressed.
-
-We count:
-
-```{r}
-at_24h = sig_counts["treatmentVitD + time24h:treatmentVitD + time4h:treatmentVitD"]
-at_4h = sig_counts["treatmentVitD + time4h:treatmentVitD"]
-
-at_24h - at_4h
-```
 
 #### NOD2
 
 According to this paper (*Epigenome-wide effects of vitamin D and their impact on the transcriptome of human monocytes involve CTCF*),
-expression of this gene ENSG00000167207 (NOD2), is only affected after 24h .
+expression of this gene (NOD2), is only affected after 24h.
 
 Evaluate this.
 
@@ -338,15 +337,15 @@ genes2.5h[gene,]$FDR
 genes4h[gene,]$FDR
 genes24h[gene, ]$FDR
 ```
+
 Indeed, only somewhat significant after 24h of treatment.
 
 #### HTT
-HTT: ENSG00000197386
 
-Should become significant after 4h of treatment.
+Should become significant after 4h of treatment according to the paper results.
 
 ```{r}
-gene = symbol2ensembl("HTT")
+gene <- symbol2ensembl("HTT")
 
 genes2.5h[gene,]$FDR
 genes4h[gene,]$FDR
@@ -355,43 +354,8 @@ genes24h[gene, ]$FDR
 
 Indeed, only somewhat significant after 4h of treatment.
 
- 
-#### THBD
-
-Significant gene from the GSE5145 microarray dataset.
-
-- THBD: ENSG00000178726
-- PEAK1: 
-
-```{r}
-
-
-gene <- symbol2ensembl("THBD")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-
-gene <- symbol2ensembl("PEAK1")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-
-gene <- symbol2ensembl("SULT1C2")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-```
-
 ### Gene Set Analysis
+
 We will use Kegga to gather gene ontology terms.
 
 Need to incorporate transcript length in the analysis as it is easier for longer transcripts to be expressed as it will have more reads, and thus higher counts (which also means lower variance and thus easier to detect as differentially expressed).
@@ -400,18 +364,17 @@ Need to incorporate transcript length in the analysis as it is easier for longer
 library(limma)
 
 # to map the ensembl gene ids to entrez ids (input for kegga)
-gid <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", "entrezgene_id", "transcript_length"), mart=GRCh38)
+gid <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", 
+                            "entrezgene_id", "transcript_length"), mart=GRCh38)
+
 gid <- gid[!duplicated(gid$ensembl_gene_id),]
 ```
 
 Universe (expressed genes after filtering)
 
 ```{r}
-
 univ <- genes4h
-
 gid_f = gid[gid$ensembl_gene_id %in% rownames(univ), ]
-genes_sort <- genes[order(rownames(univ)),]
 gid_f_sort <- gid_f[order(gid_f$ensembl_gene_id),]
 
 univ$gene_symbol <- gid_f_sort$external_gene_name
@@ -421,18 +384,17 @@ univ <- univ[!is.na(univ$entrez_gene_id),]
 ```
 
 ```{r}
-sig2.5 <- genes2.5h[genes2.5h$FDR < 0.2,]
+sig2.5 <- genes2.5h[genes2.5h$FDR < 0.5,]
 print(dim(sig2.5))
 
-sig4 <- genes4h[genes4h$FDR < 0.2,]
+sig4 <- genes4h[genes4h$FDR < 0.5,]
 sig4 <- sig4[!(rownames(sig4) %in% rownames(sig2.5)), ]
 print(dim(sig4))
 
 
-sig24 <- genes24h[genes24h$FDR < 0.2,]
-sig24 <- sig24[!(rownames(sig24) %in% rownames(sig4) | rownames(sig24) %in% rownames(sig2.5)), ]
-print(dim(sig24))
-
+sig24 <- genes24h[genes24h$FDR < 0.5,]
+sig24 <- sig24[!(rownames(sig24) %in% rownames(sig4) 
+                 | rownames(sig24) %in% rownames(sig2.5)), ]
 ```
 
 ```{r}
@@ -472,8 +434,5 @@ for (idx in 1:3) {
     
     res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")
     print(head(res[order(res$DE, decreasing=TRUE),]))
-    
-    #res_f <- res[res$FDR.DE < 0.20,]
-    print(head(res_f[order(res_f$FDR.DE),]))
 }
 ```
