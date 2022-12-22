@@ -25,22 +25,6 @@ library('IlluminaHumanMethylationEPICanno.ilm10b4.hg19')
 library('IlluminaHumanMethylationEPICmanifest')
 ```
 
-The `lumi` package is described in: 
-
-> Du, P., Kibbe, W.A. and Lin, S.M., (2008) 'lumi: a pipeline for processing Illumina microarray', _Bioinformatics_ 24(13):1547-1548
-
-The `wateRmelon` package is described in: 
-
-> Pidsley, Ruth, Wong Y, C C, Volta, Manuela, Lunnon, Katie, Mill, Jonathan, Schalkwyk, C L (2013). “A data-driven approach to preprocessing Illumina 450K methylation array data.” _BMC Genomics_, *14*, 293.
-  
-The `ChAMPdata` package is described in: 
-
-> Tian Y, Morris T, Stirling L, Teschendorff A (2022). _ChAMPdata: Data Packages for ChAMP package_. R package version 2.28.0.
-
-The `minfi` package is described in: 
-
-> Aryee MJ, Jaffe AE, Corrada-Bravo H, Ladd-Acosta C, Feinberg AP, Hansen KD, Irizarry RA (2014). “Minfi: A flexible and comprehensive Bioconductor package for the analysis of Infinium DNA Methylation microarrays.” _Bioinformatics_, *30*(10), 1363-1369.
-
 ### Load the Data
 
 Sample data is loaded.
