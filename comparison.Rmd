@@ -1,0 +1,184 @@
+# Comparisons
+### Load results
+#### Microarray: GSE5145
+```{r}
+gse5145 <- read.csv("results/GSE5145/array5145_genes.csv")
+gse5145_gse <- read.csv("results/GSE5145/array5145_genesets.csv")
+```
+
+#### Microarray: GSE145483
+
+```{r}
+gse145483 <- read.csv("results/GSE145483/array145483_genes.csv")
+gse145483_gsa <- read.csv("results/GSE145483/array145483_genesets.csv")
+```
+
+#### RNAseq: GSE69284
+
+```{r}
+gse69284_2.5h <- read.csv("results/GSE69284/genes2.5h.csv")
+gse69284_4h <- read.csv("results/GSE69284/genes4h.csv")
+gse69284_24h <- read.csv("results/GSE69284/genes24h.csv")
+gse69284_2.5h_gsa <- read.csv("results/GSE69284/gsa_1.csv")
+gse69284_4h_gsa <- read.csv("results/GSE69284/gsa_2.csv")
+gse69284_24h_gsa <- read.csv("results/GSE69284/gsa_3.csv")
+```
+
+#### RNAseq: GSE189984
+
+```{r}
+gse189984_4 <- read.csv("results/GSE189984/genes4h.csv")
+gse189984_8 <- read.csv("results/GSE189984/genes8h.csv")
+gse189984_24 <- read.csv("results/GSE189984/genes24h.csv")
+gse189984_48 <- read.csv("results/GSE189984/genes48h.csv")
+```
+
+#### Common genes
+##### Venn diagram
+```{r}
+#install.packages("ggvenn", update=FALSE)              
+library(ggvenn)
+
+# filter na values
+gse189984_48 <- gse189984_48[!is.na(gse189984_48$gene_symbol),]
+gse69284_24h <- gse69284_24h[!is.na(gse69284_24h$gene_symbol),]
+gse5145 <- gse5145[!is.na(gse5145$Gene.symbol),]
+gse145483 <- gse145483[!is.na(gse145483$Gene),]
+
+# List of items
+x <- list(gse5145_TMA = gse5145$Gene.symbol, gse69284_RNAseq = gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol, gse145483_MMA = gse145483[gse145483$adj.P.Val < 0.05,]$Gene, gse189984_RNAseq = gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol)
+
+ggvenn(x)
+```
+
+Quite a lot of common genes between GSE69284 and GSE145483: explainable by the fact that those were both performed on monocytic cell lines.
+This shows the genes that are regulated by VitD can be very different for different cell types.
+
+##### Get the common genes:
+
+```{r}
+Reduce(intersect, list(gse5145$Gene.symbol,
+          gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol,
+          gse145483[gse145483$adj.P.Val < 0.05,]$Gene,
+          gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol))
+```
+
+```{r}
+Reduce(intersect, list(gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol,
+                       gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol))
+```
+
+TODO: interpret results, perform GSA, common genes between the monocytic cell lines?
+
+#### With microarray data
+
+```{r}
+# go over all the genes from the microarray dataset.
+# TODO: get the significant genes
+
+counts <- 0
+
+for (symbol in df$Gene.symbol) {
+  id <- symbol2ensembl(symbol)
+  
+  if (!(id %in% rownames(genes24h))) {
+    next
+  }
+  
+  if(genes24h[id, ]$FDR < 0.05) {
+    counts <- counts + 1
+  }
+}
+
+counts
+```
+
+### Comparisons with other datasets
+#### THBD
+
+Significant gene from the GSE5145 microarray dataset.
+
+- THBD: ENSG00000178726
+- PEAK1: 
+
+```{r}
+
+gene <- symbol2ensembl("THBD")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+
+gene <- symbol2ensembl("PEAK1")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+
+gene <- symbol2ensembl("SULT1C2")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+gene <- symbol2ensembl("WNT2B")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+gene <- symbol2ensembl("MTSS1")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+gene <- symbol2ensembl("SRD5A3")
+gene
+
+genes2.5h[gene,]$FDR
+genes4h[gene,]$FDR
+genes24h[gene, ]$FDR
+
+#s = 0
+#for (idx in 1:length(df$Gene.symbol)) {
+#  symbol = df$Gene.symbol[idx]
+#  ens <- symbol2ensembl(symbol)
+#  if (ens %in% rownames(genes24h)) {
+#    s <- s + 1
+#  }
+#}
+#
+#s
+```
+
+
+#### With other RNAseq dataset
+
+```{r}
+# go over all the genes from the microarray dataset.
+# TODO: get the significant genes
+
+counts <- 0
+
+for (gene in rownames(result)) {
+
+  if (!(gene %in% rownames(genes24h))) {
+    next
+  }
+  
+  if(genes24h[gene, ]$FDR < 0.05) {
+    counts <- counts + 1
+    print(gene)
+  }
+}
+
+counts
+```

@@ -204,6 +204,45 @@ for (i in 1:ncol(L))
 histsP
 ```
 
+### Save Results
+
+```{r}
+genes4h <- topTablesF[["treatmentX125D"]][["table"]]
+genes8h <- topTablesF[["treatmentX125D + treatmentX125D:time08h"]][["table"]]
+genes24h <- topTablesF[["treatmentX125D + treatmentX125D:time24h"]][["table"]]
+genes48h <- topTablesF[["treatmentX125D + treatmentX125D:time48h"]][["table"]]
+```
+
+Add gene symbols:
+
+```{r}
+symb_f <- data[!duplicated(data$ensembl_gene_id),]
+
+add_gene_symbols <- function (genes) {
+    symb_f <- symb_f[symb_f$ensembl_gene_id %in% rownames(genes),]
+    symb_f <- symb_f[order(symb_f$ensembl_gene_id),]
+    genes_sort <- genes[rownames(genes4h) %in% symb_f$ensembl_gene_id,] # not all ensembl ids are in the reference
+    genes_sort <- genes_sort[order(rownames(genes_sort)),]
+    genes_sort$gene_symbol <- symb_f$external_gene_name
+
+    return(genes_sort)
+}
+
+genes4h_sort <- add_gene_symbols(genes4h)
+genes8h_sort <- add_gene_symbols(genes8h)
+genes24h_sort <- add_gene_symbols(genes24h)
+genes48h_sort <- add_gene_symbols(genes48h)
+```
+
+```{r}
+write.csv(genes4h_sort, "results/GSE189984/genes4h.csv")
+write.csv(genes8h_sort, "results/GSE189984/genes8h.csv")
+write.csv(genes24h_sort, "results/GSE189984/genes24h.csv")
+write.csv(genes48h_sort, "results/GSE189984/genes48h.csv")
+
+```
+
+
 ### Summarizing & Annotating Results
 
 The gene symbol has to be converted into Ensembl gene id.
@@ -217,28 +256,24 @@ symbol2ensembl = function(x) {
 Significant genes for each treatment time are extracted and filtered. The fraction of up/down-regulated genes is determined for each of these.
 
 ```{r}
-genes4h <- topTablesF[["treatmentX125D"]][["table"]]
 sig4 = genes4h %>% filter(FDR < 0.05)
 c4up = sig4 %>% filter(logFC > 0) %>% count
 c4 = sig4 %>% count
 print(paste("Number of significant genes when treated after 4h:", c4[,1]))
 print(paste("Fraction of up-regulated genes when treated after 4h:", (c4up / c4)[,1]))
 
-genes8h <- topTablesF[["treatmentX125D + treatmentX125D:time08h"]][["table"]]
 sig8 = genes8h %>% filter(FDR < 0.05)
 c8up = sig8 %>% filter(logFC > 0) %>% count
 c8 = sig8 %>% count
 print(paste("Number of significant genes when treated after 8h:", c8[,1]))
 print(paste("Fraction of up-regulated genes when treated after 8h:", (c8up / c8)[,1]))
 
-genes24h <- topTablesF[["treatmentX125D + treatmentX125D:time24h"]][["table"]]
 sig24 = genes24h %>% filter(FDR < 0.05)
 c24up = sig24 %>% filter(logFC > 0) %>% count
 c24 = sig24 %>% count
 print(paste("Number of significant genes when treated after 24h:", c24[,1]))
 print(paste("Fraction of up-regulated genes when treated after 24h:", (c24up / c24)[,1]))
 
-genes48h <- topTablesF[["treatmentX125D + treatmentX125D:time48h"]][["table"]]
 sig48 = genes48h %>% filter(FDR < 0.05)
 c48up = sig48 %>% filter(logFC > 0) %>% count
 c48 = sig48 %>% count
@@ -375,8 +410,6 @@ counts
 ```
 
 ## Gene Set Analysis
-
-
 
 ## Write Data for Omics Comparison
 
