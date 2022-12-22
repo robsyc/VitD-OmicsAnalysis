@@ -1,3 +1,9 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
 # Microarray Data - GSE5145
 
 ## General info
@@ -17,6 +23,22 @@ library(GEOquery)
 library(arrayQualityMetrics)
 library(limma)
 ```
+
+The `oligo` package is described in: 
+
+> Carvalho B. S., and Irizarry, R. A. 2010. A Framework for Oligonucleotide Microarray Preprocessing. _Bioinformatics_.
+
+The `GEOquery` package is described in: 
+
+> Davis, S. and Meltzer, P. S. GEOquery: a bridge between the Gene Expression Omnibus (GEO) and BioConductor. _Bioinformatics_, 2007, 14, 1846-1847
+
+The `arrayQualityMetrics` package is described in: 
+
+> Kauffmann, A., Gentleman, R.,, Huber, W. (2009) arrayQualityMetrics--a bioconductor package for quality assessment of microarray data. _Bioinformatics_, 25(3):415-6.
+
+The `limma` package is described in: 
+
+> Ritchie, M.E., Phipson, B., Wu, D., Hu, Y., Law, C.W., Shi, W., and Smyth, G.K. (2015). limma powers differential expression analyses for RNA-sequencing and microarray studies. _Nucleic Acids Research_ 43(7), e47.
 
 ### Download and Extract the Data
 
@@ -44,7 +66,7 @@ download.file(url, "./data/annotation/GSE5145/GSE5145_family.soft.gz")
 l <- list.files(
   "./data/annotation/GSE5145", pattern = ".+\\.gz",  full.names = TRUE)
 print(l)
-lapply(l, function(x) { gunzip(x, overwrite=TRUE) } )
+lapply(l, function(x) { gunzip(x, overwrite = TRUE) } )
 ```
 
 ### Load the Data

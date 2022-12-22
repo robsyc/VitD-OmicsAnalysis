@@ -3,6 +3,7 @@ output:
   pdf_document: default
   html_document: default
 ---
+
 # Comparisons
 
 ### Load results
@@ -81,13 +82,13 @@ Only three highly significant genes that are present in all four data sets were 
 
 - The **GRAMD4** gene product is know as the Death-Inducing Protein (DIP) and is linked to the recruitment of E3 ligases and other factors that play an important role in (anti-tumor) immune responses and cell death.
 
-- The **RBPJ** gene (also knows as CBF1) encodes the Recombination Signal Binding Protein For Immunoglobulin Kappa J Region, which is a downstream effector of the NOTCH signaling pathways. These highly conserved pathways have varied biological functions, including neurogenesis and embryonic development. Dysregulated notch signaling is linked to many diseases, including leukemia and multiple sclerosis.
+- The **RBPJ** gene (also knows as CBF1) encodes the Recombination Signal Binding Protein For Immunoglobulin Kappa J Region, which is a downstream effector of the NOTCH signaling pathway. These highly conserved pathways have varied biological functions, including neurogenesis and embryonic development. Dysregulated notch signaling is linked to many diseases, including leukemia and multiple sclerosis.
 
 - The **LRRC8A** gene produces the Leucine-Rich Repeat-Containing Protein 8A, which is a subunit of the cell size- and proliferation-regulating Volume-Regulated Anion Channel (VRAC).
 
 ##### Between monocytic data sets
 
-Same cell types -> we expect functions associated with Vit D for this specific cell type
+Because the cell type is roughly the same, more convergence in the results is to be expected.
 
 ```{r}
 common <- Reduce(intersect, list(gse145483[gse145483$adj.P.Val < 0.05,]$Gene,
@@ -139,3 +140,18 @@ https://www.sciencedirect.com/science/article/pii/S0306453009002145?via%3Dihub
 
 https://pubmed.ncbi.nlm.nih.gov/33838984/  
 - Choline, as a precursor of key lipids (including Glycosphingolipid) has also been linked to embryonic development and neurogenesis. Cross-regulation between these pathways can be a possible explanation for the remaining findings shown in this table.
+
+
+
+
+The `ggvenn` package is described in: 
+
+> Yan L (2021). _ggvenn: Draw Venn Diagram by 'ggplot2'_. R package version 0.1.9,
+
+The `limma` package is described in: 
+
+> Ritchie, M.E., Phipson, B., Wu, D., Hu, Y., Law, C.W., Shi, W., and Smyth, G.K. (2015). limma powers differential expression analyses for RNA-sequencing and microarray studies. _Nucleic Acids Research_ 43(7), e47.
+  
+The `biomaRt` package is described in: 
+
+> Mapping identifiers for the integration of genomic datasets with the R/Bioconductor package biomaRt. Steffen Durinck, Paul T. Spellman, Ewan Birney and Wolfgang Huber, _Nature Protocols_ 4, 1184-1191 (2009).
