@@ -33,8 +33,8 @@ gse189984_24 <- read.csv("results/GSE189984/genes24h.csv")
 gse189984_48 <- read.csv("results/GSE189984/genes48h.csv")
 ```
 
-#### Common genes
-##### Venn diagram
+### Common genes
+#### Venn diagram
 ```{r}
 #install.packages("ggvenn", update=FALSE)              
 library(ggvenn)
@@ -54,8 +54,8 @@ ggvenn(x)
 Quite a lot of common genes between GSE69284 and GSE145483: explainable by the fact that those were both performed on monocytic cell lines.
 This shows the genes that are regulated by VitD can be very different for different cell types.
 
-##### Get the common genes:
-
+#### Get the common genes:
+##### All the data sets
 ```{r}
 Reduce(intersect, list(gse5145$Gene.symbol,
           gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol,
@@ -63,122 +63,46 @@ Reduce(intersect, list(gse5145$Gene.symbol,
           gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol))
 ```
 
+##### Between monocytic data sets
+
+Same cell types -> we expect functions associated with Vit D for this specific cell type
+
 ```{r}
-Reduce(intersect, list(gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol,
+common <- Reduce(intersect, list(gse145483[gse145483$adj.P.Val < 0.05,]$Gene,
                        gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol))
 ```
 
-TODO: interpret results, perform GSA, common genes between the monocytic cell lines?
-
-#### With microarray data
+Perform GSA on this common set of genes:
 
 ```{r}
-# go over all the genes from the microarray dataset.
-# TODO: get the significant genes
+library(limma)
 
-counts <- 0
+GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org",
+                      dataset="hsapiens_gene_ensembl")
 
-for (symbol in df$Gene.symbol) {
-  id <- symbol2ensembl(symbol)
-  
-  if (!(id %in% rownames(genes24h))) {
-    next
-  }
-  
-  if(genes24h[id, ]$FDR < 0.05) {
-    counts <- counts + 1
-  }
-}
+# attributes
+atr <- listAttributes(GRCh38)
+idmap <- getBM(attributes = c('entrezgene_id',
+                             'external_gene_name'), mart = GRCh38)
 
-counts
+# map gene symbols to entez ids
+idmap <- idmap[!duplicated(idmap$external_gene_name),]
+idmap <- idmap[idmap$external_gene_name %in% common,]
+entrez <- idmap$entrezgene_id
+
+res <- kegga(de=entrez,
+             species.KEGG="hsa")
+res <- res[order(res$N),]
+    
+res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")
 ```
 
-### Comparisons with other datasets
-#### THBD
-
-Significant gene from the GSE5145 microarray dataset.
-
-- THBD: ENSG00000178726
-- PEAK1: 
+Analyse results:
 
 ```{r}
-
-gene <- symbol2ensembl("THBD")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-
-gene <- symbol2ensembl("PEAK1")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-
-gene <- symbol2ensembl("SULT1C2")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-gene <- symbol2ensembl("WNT2B")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-gene <- symbol2ensembl("MTSS1")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-gene <- symbol2ensembl("SRD5A3")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-#s = 0
-#for (idx in 1:length(df$Gene.symbol)) {
-#  symbol = df$Gene.symbol[idx]
-#  ens <- symbol2ensembl(symbol)
-#  if (ens %in% rownames(genes24h)) {
-#    s <- s + 1
-#  }
-#}
-#
-#s
+head(res[order(res$P.DE),])
 ```
 
+TODO: check the meaning behind these?
 
-#### With other RNAseq dataset
-
-```{r}
-# go over all the genes from the microarray dataset.
-# TODO: get the significant genes
-
-counts <- 0
-
-for (gene in rownames(result)) {
-
-  if (!(gene %in% rownames(genes24h))) {
-    next
-  }
-  
-  if(genes24h[gene, ]$FDR < 0.05) {
-    counts <- counts + 1
-    print(gene)
-  }
-}
-
-counts
-```
+- role of VitaminD in Atherosclerosis (TODO: ref)?
