@@ -43,21 +43,16 @@ data_inf = readEPIC("./data/array145483/")
 The data has 12 samples (4 undifferentiated, 4 treated, and 4 control samples).
 
 ```{r}
-print(
-  paste(
-    "Array matrix dimensions:", 
-    dim(data_annot)[1], 'x', 
-    dim(data_annot)[2], sep = ' '))
-data_annot
+knitr::kable(data_annot[,1:2])
 ```
 
 Beta and M values are explored, only a minor amount of NA values were observed.
 
 ```{r}
-print("Beta values:")
-head(betas(data_inf), 3) # retrieve the beta-values (methylation percentage)
-print("M-values: :")
-head(exprs(data_inf), 3) # retrieve the M-values
+print("Beta values:") # retrieve the beta-values (methylation percentage)
+head(betas(data_inf), 2)
+print("M-values: :") # retrieve the M-values
+head(exprs(data_inf), 2)
 
 print(paste("NA beta values:", sum(is.na(betas(data_inf)))))
 print(paste("non-NA beta values:", sum(!is.na(betas(data_inf)))))
@@ -75,6 +70,7 @@ This entries of the missing observation values are filtered out.
 # removing NA values
 data_inf = data_inf[rowSums(is.na(exprs(data_inf))) == 0,]
 
+print("After filtering:")
 print(paste("NA beta values:", sum(is.na(betas(data_inf)))))
 print(paste("non-NA beta values:", sum(!is.na(betas(data_inf)))))
 print(paste("NA M values:", sum(is.na(exprs(data_inf)))))
@@ -85,13 +81,12 @@ For a more simple comparison between treated and untreated samples, undifferenti
 
 ```{r}
 # take subset
-infdata = data_inf[,c(grep("DC", data_annot[,2]), grep("TL", data_annot[,2]))]
-annot = data_annot[c(grep("DC", data_annot[,2]), grep("TL", data_annot[,2])),]
+infdata = data_inf[
+  ,c(grep("DC", data_annot[,2]), grep("TL", data_annot[,2]))]
+annot = data_annot[
+  c(grep("DC", data_annot[,2]), grep("TL", data_annot[,2])),]
 
-# change sample names to something more informative
-sampleNames(infdata) = paste(annot[,1], annot[,2], sep = "_")
-
-annot
+knitr::kable(annot[,1:2])
 ```
 
 Detection p-values and bead counts are filtered with the `pfilter` function of the wateRmelon package.
@@ -109,7 +104,12 @@ Comparison of average degree of methylation between control and tumor samples on
 The boxplot of the beta values gives a general idea of the distribution of methylation degree per sample. A slight difference between samples can be observed, but there is no clear destinction between treated and untreated samples.
 
 ```{r}
-boxplot(betas(infdata.pf), las = 2)
+cols <- c("blue", "blue", "blue", "blue", "red", "red", "red","red")
+labs <- c("DC25", "DC26", "DC27", "DC28", "TL29", "TL30", "TL31", "TL32")
+  
+boxplot(
+  betas(infdata.pf), xlab = "Sample", ylab = "Betas",
+  col = cols, names = labs)
 ```
 
 Comparison of average degree of methylation between control and tumor samples on high dimensional data:
@@ -134,7 +134,8 @@ t_test_res
 dat_boxplot <- data.frame(betas = c(meth_mean_DC, meth_mean_TL),
 group = c("DC","DC","DC","DC","TL","TL","TL","TL"))
 
-boxplot(betas ~ group, dat_boxplot, las = 2)
+boxplot(betas ~ group, dat_boxplot, 
+        xlab = "Group", ylab = "Mean Betas", col = c("blue", "red"))
 ```
 
 ## Processing
@@ -155,8 +156,8 @@ infdataN <- as(infdata.dasen.pf, 'MethyLumiM')
 # make plots
 plotColorBias1D(infdataM, channel = "both", main = "before")
 plotColorBias1D(infdataN, channel = "both", main = "after")
-density(infdataM, main = "before")
-density(infdataN, main = "after")
+density(infdataM, main = "before", legend = FALSE)
+density(infdataN, main = "after", legend = FALSE)
 ```
 
 ## Differential Methylation Analysis: LIMMA
@@ -170,7 +171,7 @@ A design matrix is constructed to account for the treatment effect.
 ```{r}
 design <- model.matrix(~ factor(c(0, 0, 0, 0, 1, 1, 1, 1)))
 colnames(design) <- c("Intercept", "Treatment")
-head(design)
+knitr::kable(head(design))
 ```
 
 ### Contrast Matrix
@@ -207,8 +208,15 @@ print(paste(
 print(paste(
   "Postive FC:", sum(sigTopMethyl$logFC > 0), 
   "Negative FC:", sum(sigTopMethyl$logFC < 0)))
-head(sigTopMethyl)
+knitr::kable(head(sigTopMethyl[c("logFC", "AveExpr", "P.Value", "adj.P.Val")]))
 ```
+
+```{r}
+plot(topMethyl$AveExpr, topMethyl$logFC, 
+     col = as.factor(topMethyl$adj.P.Val < 0.05), 
+     pch = 20, xlab = "Average M-value", ylab = "logFC", cex = 0.70)
+```
+
 
 ### Functional Annotation of Results
 
@@ -219,7 +227,6 @@ data("probe.features.epic")
 annotation_MA <- probe.features
 annotation_MA <- annotation_MA[
   sort(rownames(annotation_MA), index.return = TRUE)$ix,]
-head(annotation_MA)
 ```
 
 A comparison is made between both probe sets. All probes that were detected during the experiment are present in the annotation probe set, the difference could be due to technical errors or the filtration procedure. Unnecessary probes were removed and annotation information was added to the probe table.
@@ -255,7 +262,8 @@ sigTopMethyl_sorted$Feature <- as.character(annotation_MA_min$feature)
 sigTopMethyl_sorted$Chrom <- as.character(annotation_MA_min$CHR)
 sigTopMethyl_sorted$Pos <- annotation_MA_min$MAPINFO
 
-head(sigTopMethyl_sorted)
+knitr::kable(head(
+  sigTopMethyl_sorted[c("logFC", "AveExpr", "P.Value", "adj.P.Val", "Gene")]))
 ```
 
 ## Gene Set Analysis
@@ -269,7 +277,8 @@ print(paste(
   "Number of probes without gene name:", 
   sum(sigTopMethyl_sorted$Gene == ''), '/', dim(sigTopMethyl_sorted)[1]))
 sigTopMethyl_sorted <- sigTopMethyl_sorted[sigTopMethyl_sorted$Gene != '',]
-head(sigTopMethyl_sorted)
+knitr::kable(head(
+  sigTopMethyl_sorted[c("logFC", "AveExpr", "P.Value", "adj.P.Val", "Gene")]))
 ```
 
 The Entrez gene ID is fetched for both the significant and non-significant probes.
@@ -277,21 +286,22 @@ The Entrez gene ID is fetched for both the significant and non-significant probe
 ```{r error=FALSE, warning=FALSE, message=FALSE}
 library(biomaRt)
 
-hsmart <- useMart(dataset = "hsapiens_gene_ensembl", biomart = "ensembl")
+hsmart <- useMart(
+  dataset = "hsapiens_gene_ensembl", biomart = "ensembl")
 
 sigMappings <- getBM(
   attributes = 'entrezgene_id', 
   filters = 'hgnc_symbol',
   values = sigTopMethyl_sorted$Gene,
   mart = hsmart)
-head(sigMappings)
 
 allMappings <- getBM(
   attributes = 'entrezgene_id', 
   filters = 'hgnc_symbol',
   values = annotation_MA$gene[annotation_MA$gene != ''],
   mart = hsmart)
-head(allMappings)
+
+knitr::kable(head(sigMappings))
 ```
 
 A gene set table is generated.
@@ -308,7 +318,7 @@ res$FDR.DE <- p.adjust(res$P.DE, n = nrow(res), method = "BH")
 
 print(paste("Number of significant gene sets:", 
             sum(res$FDR.DE < 0.05), '/', dim(res)[1]))
-print(head(res[order(res$DE, decreasing = TRUE),]))
+knitr::kable(head(res[order(res$DE, decreasing = TRUE),]))
 ```
 
 ## Save Results

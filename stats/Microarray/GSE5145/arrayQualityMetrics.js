@@ -4,7 +4,7 @@
 //   template for this script from arrayQualityMetrics/inst/scripts into the report.
 
 var highlightInitial = [ false, false, false, false, false, true ];
-var arrayMetadata    = [ [ "1", "GSM116101.CEL", "1" ], [ "2", "GSM116102.CEL", "2" ], [ "3", "GSM116103.CEL", "3" ], [ "4", "GSM116104.CEL", "4" ], [ "5", "GSM116105.CEL", "5" ], [ "6", "GSM116106.CEL", "6" ] ];
+var arrayMetadata    = [ [ "1", "GSM116101", "1" ], [ "2", "GSM116102", "2" ], [ "3", "GSM116103", "3" ], [ "4", "GSM116104", "4" ], [ "5", "GSM116105", "5" ], [ "6", "GSM116106", "6" ] ];
 var svgObjectNames   = [ "pca", "dens" ];
 
 var cssText = ["stroke-width:1; stroke-opacity:0.4",

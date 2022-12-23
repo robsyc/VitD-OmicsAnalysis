@@ -124,19 +124,18 @@ res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")
 Analyse results:
 
 ```{r}
-head(res[order(res$P.DE),], 10)
+knitr::kable(head(res[order(res$P.DE),], 10))
 ```
 
 Vitamin D, its metabolites, and the Vit D receptor (VDR) play an important role as regulating factors in a wide range of highly conserved and critical pathways.The functions of these pathways inlcude:
 
-https://pubmed.ncbi.nlm.nih.gov/25144342/  
-- The regulation of calcium absorption and resorption in the intestine, kidneys and bonematrix. This explains the observed link between Vit D and atherosclerosis, which is a disease that results in the infection and calcification of the artery wall. The infections present in atherosclerosis can be linked to increased immunologic responses as a result of Adipocytokine signaling, in which cytokines are secreted by adipose tissue.
+- The regulation of calcium absorption and resorption in the intestine, kidneys and bonematrix. This explains the observed link between Vit D and atherosclerosis, which is a disease that results in the infection and calcification of the artery wall. The infections present in atherosclerosis can be linked to increased immunologic responses as a result of Adipocytokine signaling, in which cytokines are secreted by adipose tissue. (https://pubmed.ncbi.nlm.nih.gov/25144342/)
 
-https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3270541/  
-- The regulation of immune functions, specifically the innate anti-viral response and cell death. This explains the observed link between Vit D and the NF-kappa B signaling / Epstein-Barr virus infection / B cell receptor signaling. Though it should be mentioned that these findings are most likely greatly dependent on the fact that these experiments were performed on monocytic cells which have an important role in the immune response on their own. Rap1 (a small GTPase) is a general signal transduction factor that will most likely guide the monocyte in its immunogenic endavors
 
-https://www.sciencedirect.com/science/article/pii/S0306453009002145?via%3Dihub  
-- Vit D and its metabolites have shown to be linked to the functioning of the central nervous system, the development of of the fetal brain, and neurogenesis. Insuficiency has also been linked to many diseases associated with the CNS, including multiple sclerosis, Alzheimer's and Parkinson's disease, seasonal affective disorder and schizophrenia.
+- The regulation of immune functions, specifically the innate anti-viral response and cell death. This explains the observed link between Vit D and the NF-kappa B signaling / Epstein-Barr virus infection / B cell receptor signaling. Though it should be mentioned that these findings are most likely greatly dependent on the fact that these experiments were performed on monocytic cells which have an important role in the immune response on their own. Rap1 (a small GTPase) is a general signal transduction factor that will most likely guide the monocyte in its immunogenic endavors (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3270541/)
 
-https://pubmed.ncbi.nlm.nih.gov/33838984/  
-- Choline, as a precursor of key lipids (including Glycosphingolipid) has also been linked to embryonic development and neurogenesis. Cross-regulation between these pathways can be a possible explanation for the remaining findings shown in this table.
+
+- Vit D and its metabolites have shown to be linked to the functioning of the central nervous system, the development of of the fetal brain, and neurogenesis. Insuficiency has also been linked to many diseases associated with the CNS, including multiple sclerosis, Alzheimer's and Parkinson's disease, seasonal affective disorder and schizophrenia. (https://www.sciencedirect.com/science/article/pii/S0306453009002145?via%3Dihub)
+
+
+- Choline, as a precursor of key lipids (including Glycosphingolipid) has also been linked to embryonic development and neurogenesis. Cross-regulation between these pathways can be a possible explanation for the remaining findings shown in this table. (https://pubmed.ncbi.nlm.nih.gov/33838984/)

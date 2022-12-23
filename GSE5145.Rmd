@@ -75,7 +75,7 @@ for (id in IDs) {
   title <- annot@gsms[[id]]@header[["title"]]
   titles <- append(titles, title)
 }
-data.frame(IDs, titles)
+knitr::kable(data.frame(IDs, titles))
 ```
 
 ## Data exploration
@@ -88,7 +88,10 @@ print(
     "Array matrix dimensions:", 
     dim(exprs(arrayRaw))[1], 'x', 
     dim(exprs(arrayRaw))[2], sep = ' '))
-data.frame(head(exprs(arrayRaw)))
+
+# removing .CEL from column names
+colnames(arrayRaw) <- substr(colnames(arrayRaw), start = 1, stop = 9)
+knitr::kable(data.frame(head(exprs(arrayRaw))))
 ```
 
 ### Data Extraction
@@ -103,7 +106,8 @@ print(
     "Array matrix dimensions after summarization:", 
     dim(exprs(arrayRma))[1], 'x', 
     dim(exprs(arrayRma))[2], sep = ' '))
-data.frame(head(exprs(arrayRma)))
+
+knitr::kable(data.frame(head(exprs(arrayRma))))
 ```
 
 All probes were mapped to unique genes.
@@ -132,13 +136,13 @@ boxplot(exprs(arrayRma))
 
 ### Model Fitting
 
-LIMMA is performed to find differentially expressed genes.
+LIMMA is performed to find differentially expressed genes. The last sample was removed due to 
 
 ```{r}
 # design matrix
-design <- model.matrix(~ factor(c(1, 1, 1, 0, 0, 0)))
+design <- model.matrix(~ factor(c(1, 1, 1, 0, 0)))
 colnames(design) <- c("Intercept", "Treatment")
-fit <- lmFit(arrayRma, design)
+fit <- lmFit(arrayRma[,1:5], design)
 ```
 
 To make a pair-wise comparison between the two groups the appropriate contrast matrix is created.
@@ -156,7 +160,7 @@ A list of top genes differential expressed in the Control versus treatment group
 The best probe (203887_s_at) is expressed 10^3 times more in the treated group (log fold change).
 
 ```{r}
-topNumber <- 1000
+topNumber <- 2000
 table <- topTable(
   fit2, 
   coef = 1, 
@@ -166,7 +170,7 @@ table <- topTable(
 sig_table <- table[table["adj.P.Val"] < 0.05, ]
 
 print(paste("Significant genesets after FDR correction:", dim(sig_table)[1]))
-head(sig_table)
+knitr::kable(head(sig_table))
 ```
 
 The vulcano plot shows that significant differentially expressed genes are primarily overexpressed.
@@ -223,10 +227,10 @@ df <- data.frame(
 print(paste("Number of significant genes:", dim(df)[1], sep = ' '))
 print(paste("Number of upregulated genes:", 
             sum(df$Fold.Change > 0), '/', dim(df)[1], sep = ' '))
-head(df)
+knitr::kable(head(df[,-ncol(df)]))
 ```
 
-The significant probe sets could be mapped to 534 individual genes, which were mostly upregulated after Vit D treatment. Many of these genes have a role in high-level signal transduction (cell cyle, metabolism, differentiation). This is a first indication that Vit D is an important nutrient with pleiotropic regulatory effects in the cell.
+The significant probe sets could be mapped to 744 individual genes, which were mostly upregulated after Vit D treatment. Many of these genes have a role in high-level signal transduction (cell cyle, metabolism, differentiation). This is a first indication that Vit D is an important nutrient with pleiotropic regulatory effects in the cell.
 
 When comparing these findings to those reported in the original paper, the same upregulated genes were found.
 
@@ -243,7 +247,7 @@ res <- res[order(res$N),]
 res$FDR.DE <- p.adjust(res$P.DE, n = nrow(res), method = "BH")
 
 print(paste("Number of significant gene sets:", dim(res)[1], sep = ' '))
-print(head(res[order(res$DE, decreasing = TRUE),]))
+knitr::kable(head(res[order(res$DE, decreasing = TRUE),]))
 ```
 
 ## Save Results
