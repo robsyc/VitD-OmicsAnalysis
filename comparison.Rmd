@@ -1,6 +1,15 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
 # Comparisons
+
 ### Load results
+
 #### Microarray: GSE5145
+
 ```{r}
 gse5145 <- read.csv("results/GSE5145/array5145_genes.csv")
 gse5145_gse <- read.csv("results/GSE5145/array5145_genesets.csv")
@@ -34,9 +43,10 @@ gse189984_48 <- read.csv("results/GSE189984/genes48h.csv")
 ```
 
 ### Common genes
+
 #### Venn diagram
-```{r}
-#install.packages("ggvenn", update=FALSE)              
+
+```{r error=FALSE, warning=FALSE, message=FALSE}
 library(ggvenn)
 
 # filter na values
@@ -46,16 +56,21 @@ gse5145 <- gse5145[!is.na(gse5145$Gene.symbol),]
 gse145483 <- gse145483[!is.na(gse145483$Gene),]
 
 # List of items
-x <- list(gse5145_TMA = gse5145$Gene.symbol, gse69284_RNAseq = gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol, gse145483_MMA = gse145483[gse145483$adj.P.Val < 0.05,]$Gene, gse189984_RNAseq = gse189984_24[gse189984_24$FDR < 0.05,]$gene_symbol)
+x <- list(
+  TranscArray = gse5145$Gene.symbol, 
+  RNAseq24 = gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol, 
+  MethlyArray = gse145483[gse145483$adj.P.Val < 0.05,]$Gene, 
+  RNAseq48 = gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol)
 
-ggvenn(x)
+ggvenn(x, show_percentage = FALSE, text_size = 3, set_name_size = 3.4)
 ```
 
-Quite a lot of common genes between GSE69284 and GSE145483: explainable by the fact that those were both performed on monocytic cell lines.
-This shows the genes that are regulated by VitD can be very different for different cell types.
+There is a clear distinction in the number of common genes when comparing the experiments that were performed on lymphocytes (monocytes, THP-1, PBMC) against the experiment that was perfomed on smooth muscle cells (Microarray: GSE5145). Many common genes between GSE69284 (RNAseq) and GSE145483 (methylation array) can be observed, this can be explained by the fact that these experiments were both performed on monocyte-derived cell lines. This demonstrates the pleiotropic and cell type-dependent nature of Vit D-regulated gene expression.
 
 #### Get the common genes:
+
 ##### All the data sets
+
 ```{r}
 Reduce(intersect, list(gse5145$Gene.symbol,
           gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol,
@@ -63,9 +78,17 @@ Reduce(intersect, list(gse5145$Gene.symbol,
           gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol))
 ```
 
+Only three highly significant genes that are present in all four data sets were found:  
+
+- The **GRAMD4** gene product is know as the Death-Inducing Protein (DIP) and is linked to the recruitment of E3 ligases and other factors that play an important role in (anti-tumor) immune responses and cell death.
+
+- The **RBPJ** gene (also knows as CBF1) encodes the Recombination Signal Binding Protein For Immunoglobulin Kappa J Region, which is a downstream effector of the NOTCH signaling pathway. These highly conserved pathways have varied biological functions, including neurogenesis and embryonic development. Dysregulated notch signaling is linked to many diseases, including leukemia and multiple sclerosis.
+
+- The **LRRC8A** gene produces the Leucine-Rich Repeat-Containing Protein 8A, which is a subunit of the cell size- and proliferation-regulating Volume-Regulated Anion Channel (VRAC).
+
 ##### Between monocytic data sets
 
-Same cell types -> we expect functions associated with Vit D for this specific cell type
+Because the cell type is roughly the same, more convergence in the results is to be expected.
 
 ```{r}
 common <- Reduce(intersect, list(gse145483[gse145483$adj.P.Val < 0.05,]$Gene,
@@ -74,7 +97,8 @@ common <- Reduce(intersect, list(gse145483[gse145483$adj.P.Val < 0.05,]$Gene,
 
 Perform GSA on this common set of genes:
 
-```{r}
+```{r error=FALSE, warning=FALSE, message=FALSE}
+library(biomaRt)
 library(limma)
 
 GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org",
@@ -103,9 +127,18 @@ res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")
 Analyse results:
 
 ```{r}
-head(res[order(res$P.DE),])
+knitr::kable(head(res[order(res$P.DE),], 10))
 ```
 
-TODO: check the meaning behind these?
+Vitamin D, its metabolites, and the Vit D receptor (VDR) play an important role as regulating factors in a wide range of highly conserved and critical pathways.The functions of these pathways inlcude:
 
-- role of VitaminD in Atherosclerosis (TODO: ref)?
+- The regulation of calcium absorption and resorption in the intestine, kidneys and bonematrix. This explains the observed link between Vit D and atherosclerosis, which is a disease that results in the infection and calcification of the artery wall. The infections present in atherosclerosis can be linked to increased immunologic responses as a result of Adipocytokine signaling, in which cytokines are secreted by adipose tissue. (https://pubmed.ncbi.nlm.nih.gov/25144342/)
+
+
+- The regulation of immune functions, specifically the innate anti-viral response and cell death. This explains the observed link between Vit D and the NF-kappa B signaling / Epstein-Barr virus infection / B cell receptor signaling. Though it should be mentioned that these findings are most likely greatly dependent on the fact that these experiments were performed on monocytic cells which have an important role in the immune response on their own. Rap1 (a small GTPase) is a general signal transduction factor that will most likely guide the monocyte in its immunogenic endavors (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3270541/)
+
+
+- Vit D and its metabolites have shown to be linked to the functioning of the central nervous system, the development of of the fetal brain, and neurogenesis. Insuficiency has also been linked to many diseases associated with the CNS, including multiple sclerosis, Alzheimer's and Parkinson's disease, seasonal affective disorder and schizophrenia. (https://www.sciencedirect.com/science/article/pii/S0306453009002145?via%3Dihub)
+
+
+- Choline, as a precursor of key lipids (including Glycosphingolipid) has also been linked to embryonic development and neurogenesis. Cross-regulation between these pathways can be a possible explanation for the remaining findings shown in this table. (https://pubmed.ncbi.nlm.nih.gov/33838984/)
