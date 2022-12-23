@@ -1,8 +1,14 @@
 ---
 output:
-  pdf_document: default
+  pdf_document:
+    df_print: kable
   html_document: default
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, error = FALSE)
+knitr::opts_chunk$set(dpi = 120)
+```
 
 # Comparisons
 
@@ -46,7 +52,7 @@ gse189984_48 <- read.csv("results/GSE189984/genes48h.csv")
 
 #### Venn diagram
 
-```{r error=FALSE, warning=FALSE, message=FALSE}
+```{r}
 library(ggvenn)
 
 # filter na values
@@ -58,11 +64,11 @@ gse145483 <- gse145483[!is.na(gse145483$Gene),]
 # List of items
 x <- list(
   TranscArray = gse5145$Gene.symbol, 
-  RNAseq24 = gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol, 
+  RNAseqTHP1 = gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol, 
   MethlyArray = gse145483[gse145483$adj.P.Val < 0.05,]$Gene, 
-  RNAseq48 = gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol)
+  RNAseqPBMC = gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol)
 
-ggvenn(x, show_percentage = FALSE, text_size = 3, set_name_size = 3.4)
+ggvenn(x, show_percentage = FALSE, text_size = 3, set_name_size = 4)
 ```
 
 There is a clear distinction in the number of common genes when comparing the experiments that were performed on lymphocytes (monocytes, THP-1, PBMC) against the experiment that was perfomed on smooth muscle cells (Microarray: GSE5145). Many common genes between GSE69284 (RNAseq) and GSE145483 (methylation array) can be observed, this can be explained by the fact that these experiments were both performed on monocyte-derived cell lines. This demonstrates the pleiotropic and cell type-dependent nature of Vit D-regulated gene expression.
@@ -98,7 +104,7 @@ common_lyphocytes
 
 Perform GSA on this common set of genes:
 
-```{r error=FALSE, warning=FALSE, message=FALSE}
+```{r}
 library(biomaRt)
 library(limma)
 
@@ -128,7 +134,7 @@ res$FDR.DE <- p.adjust(res$P.DE, n = nrow(res), method = "BH")
 Analyse results:
 
 ```{r}
-knitr::kable(head(res[order(res$P.DE),], 10))
+head(res[order(res$P.DE),], 10)
 ```
 
 ##### Between monocytic data sets
@@ -148,7 +154,7 @@ common_monocytes
 
 Perform GSA on this common set of genes:
 
-```{r error=FALSE, warning=FALSE, message=FALSE}
+```{r}
 library(biomaRt)
 library(limma)
 
