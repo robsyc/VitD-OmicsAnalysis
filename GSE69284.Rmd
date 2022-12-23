@@ -1,6 +1,14 @@
+---
+title: "Appendix C: RNAseq Analysis (GSE69284)"
+output:
+  pdf_document:
+    df_print: kable
+---
+
 ```{r setup, include=FALSE} 
 # disable warnings & mes
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(dpi = 120)
 ```
 
 # RNAseq Data - GSE69284
@@ -198,6 +206,7 @@ dge <- scaleOffset(dge, normMat)
 
 ### Design Matrix
 
+In the design matrix we add interaction coefficients between the treatment and time to study the time effect of the treatment.
 In formula-form this model takes following form (we will use this when constructing the contrast tests):
 
 $$
@@ -253,8 +262,6 @@ fit <- glmQLFit(dge,design)
 
 ### Define contrasts
 
-TODO: do the contrasts properly
-
 ```{r}
 L <- msqrob2::makeContrast(
     c("treatmentVitD = 0",
@@ -278,7 +285,7 @@ topTablesF <- lapply(testsF, topTags, n=nrow(dge))
 
 sig_counts <- sapply(topTablesF, function(x) sum(x$table$FDR< 0.05))
 
-knitr::kable(sig_counts, format="latex")
+sig_counts
 ```
 
 ```{r}
@@ -286,6 +293,7 @@ genes2.5h <- topTablesF$treatmentVitD$table
 genes4h <- topTablesF$`treatmentVitD + time4h:treatmentVitD`$table
 genes24h <- topTablesF$`treatmentVitD + time24h:treatmentVitD`$table
 ```
+
 
 #### A small note on these contrasts
 
@@ -356,12 +364,9 @@ with(genes24h,plot(logCPM,logFC,pch=16,cex=0.2))
 with(genes24h,points(logCPM[FDR<0.05],logFC[FDR<0.05],pch=16,col="red",cex=0.6))
 # MA-plot: significant loci
 abline(0,0)
-
 ```
 
-### Save Results
-
-
+### Add gene symbols
 
 Add gene symbols:
 
@@ -383,8 +388,17 @@ symb_f <- data[data$ensembl_gene_id %in% rownames(genes24h),]
 symb_f <- symb_f[!duplicated(symb_f$ensembl_gene_id),]
 symb_f <- symb_f[order(symb_f$ensembl_gene_id),]
 genes24h_sort$gene_symbol <- symb_f$external_gene_name
-
 ```
+
+### Top hits at 24h
+
+```{r}
+genes24h_top <- genes24h_sort[order(genes24h_sort$FDR),]
+top <- head(genes24h_top[,c("gene_symbol", "logFC", "FDR")])
+top
+```
+
+### Save results
 
 ```{r}
 write.csv(genes2.5h_sort, "results/GSE69284/genes2.5h.csv")
@@ -403,7 +417,7 @@ symbol2ensembl = function(x) {
 ```
 
 
-#### Paper result: time effect of treatment
+#### Comparison with Paper result: time effect of treatment
 In the paper they mention a few genes that only express after a certain treatment length.
 
 According to this paper (*Epigenome-wide effects of vitamin D and their impact on the transcriptome of human monocytes involve CTCF*),
@@ -415,97 +429,24 @@ Similarly HTT should become significant after 4h of treatment according to the p
 gene1 <- symbol2ensembl("NOD2")
 gene2 <- symbol2ensembl("HTT")
 
-res_fdr <- data.frame(t2.5h = genes2.5h[c(gene1, gene2),]$FDR,
-                  t4h = genes4h[c(gene1, gene2),]$FDR,
-                  t24h = genes24h[c(gene1, gene2),]$FDR, row.names=c("NOD2", "HTT"))
+t2.5h = genes2.5h[gene1,c("logFC", "FDR")]
+t4h = genes4h[gene1, c("logFC", "FDR")]
+t24h = genes24h[gene1,c("logFC", "FDR")]
 
-knitr::kable(t(res_fdr), format="latex")
+res <- rbind(t2.5h, t4h, t24h)
+rownames(res) <- c("2.5h", "4h", "24h")
+res_nod2 <- res
+
+t2.5h = genes2.5h[gene2,c("logFC", "FDR")]
+t4h = genes4h[gene2, c("logFC", "FDR")]
+t24h = genes24h[gene2,c("logFC", "FDR")]
+
+res <- rbind(t2.5h, t4h, t24h)
+rownames(res) <- c("2.5h", "4h", "24h")
+res_htt <- res
+
+res_nod2
+res_htt
 ```
 
 Indeed, this is also confirmed by our results.
-
-### Gene Set Analysis
-
-We will use Kegga to gather gene ontology terms.
-
-Need to incorporate transcript length in the analysis as it is easier for longer transcripts to be expressed as it will have more reads, and thus higher counts (which also means lower variance and thus easier to detect as differentially expressed).
-
-```{r}
-library(limma)
-
-# to map the ensembl gene ids to entrez ids (input for kegga)
-gid <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", 
-                            "entrezgene_id", "transcript_length"), mart=GRCh38)
-
-gid <- gid[!duplicated(gid$ensembl_gene_id),]
-```
-
-Universe (expressed genes after filtering)
-
-```{r}
-univ <- genes4h
-gid_f = gid[gid$ensembl_gene_id %in% rownames(univ), ]
-gid_f_sort <- gid_f[order(gid_f$ensembl_gene_id),]
-
-univ$gene_symbol <- gid_f_sort$external_gene_name
-univ$entrez_gene_id <- gid_f_sort$entrezgene_id
-
-univ <- univ[!is.na(univ$entrez_gene_id),]
-```
-
-```{r}
-sig2.5 <- genes2.5h[genes2.5h$FDR < 0.5,]
-print(dim(sig2.5))
-
-sig4 <- genes4h[genes4h$FDR < 0.5,]
-sig4 <- sig4[!(rownames(sig4) %in% rownames(sig2.5)), ]
-print(dim(sig4))
-
-
-sig24 <- genes24h[genes24h$FDR < 0.5,]
-sig24 <- sig24[!(rownames(sig24) %in% rownames(sig4) 
-    | rownames(sig24) %in% rownames(sig2.5)), ]
-```
-
-```{r}
-for (idx in 1:3) {
-
-    if (idx == 1) {
-        genes <- sig2.5
-    } else if (idx == 2) {
-        genes <- sig4
-    } else {
-        genes <- sig24
-    }      
-
-    # relax as otherwise too less significant genes
-    # filter out the DE genes
-    print(dim(genes))
-
-    gid_f = gid[gid$ensembl_gene_id %in% rownames(genes), ]
-    genes_sort <- genes[order(rownames(genes)),]
-    gid_f_sort <- gid_f[order(gid_f$ensembl_gene_id),]
-
-    genes_sort$gene_symbol <- gid_f_sort$external_gene_name
-    genes_sort$entrez_gene_id <- gid_f_sort$entrezgene_id
-    genes_sort$transcript_length <- gid_f_sort$transcript_length
-
-    # Analysis with Kegga:
-
-    # not all genes have an entrez idz
-    genes_sort <- genes_sort[!is.na(genes_sort$entrez_gene_id),]
-
-    # filter out NA values
-
-    res <- goana(de=genes_sort$entrez_gene_id,
-                 universe = univ$entrez_gene_id,
-                 species ="Hs", trend=genes_sort$transcript_length)
-    res <- res[order(res$N),]
-    
-    res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")`
-
-    print(head(res[order(res$DE, decreasing=TRUE),]))
-    
-    write.csv(res, paste("results/GSE69284/gsa_", idx, ".csv", sep=""))
-}
-```

@@ -1,3 +1,17 @@
+---
+title: "Appendix D: RNAseq Analysis (GSE189984)"
+output:
+  pdf_document:
+    df_print: kable
+---
+
+```{r setup, include=FALSE} 
+# disable warnings & mes
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(dpi = 120)
+```
+
+
 # RNAseq Data - GSE189984
 
 ## General info
@@ -38,7 +52,9 @@ The already normalized RNAseq count matrix is loaded. The column names of this m
 # count data
 counts <- read.csv("./data/RNAseq189984/GSE189984_counts.csv", header = TRUE, row.names = 1)
 print(paste("Count table dimensions:", dim(counts)[1], 'x', dim(counts)[2], sep = ' '))
-head(counts)
+
+# number of columns reduced for printing
+head(counts[,1:5])
 ```
 
 The count table does not contain any duplicate genes.
@@ -55,7 +71,7 @@ The transcript annotation data is extracted. This contains gene symbol, ID, desc
 ```{r}
 # annotation data
 annot <- read.csv("./data/RNAseq189984/GSE189984_annot.csv", header = TRUE)
-head(annot)
+head(annot[,c("hgnc_symbol", "ensembl_gene_id", "entrezgene_id", "description")])
 ```
 
 A case-control study was performed with 4 different treatment groups (4, 8, 24 and 48 hour exposure) in the PBMC cell line. The treatment time will be added as a factor during statistical analysis.
@@ -226,11 +242,18 @@ with(genes24h,points(logCPM[FDR<0.05],logFC[FDR<0.05],pch=16,col="red",cex=0.6))
 abline(0,0)
 ```
 
-### Save Results
-
-Add gene symbols:
+### Add Gene Symbols:
 
 ```{r}
+# annotation data
+GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org",
+                      dataset="hsapiens_gene_ensembl")
+
+# attributes
+atr <- listAttributes(GRCh38)
+data <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id',
+                             'external_gene_name'), mart = GRCh38)
+
 symb_f <- data[!duplicated(data$ensembl_gene_id),]
 
 add_gene_symbols <- function (genes) {
@@ -248,6 +271,16 @@ genes8h_sort <- add_gene_symbols(genes8h)
 genes24h_sort <- add_gene_symbols(genes24h)
 genes48h_sort <- add_gene_symbols(genes48h)
 ```
+
+### Top hits at 24h
+
+```{r}
+genes48h_top <- genes48h_sort[order(genes48h_sort$FDR),]
+top <- head(genes48h_top[,c("gene_symbol", "logFC", "FDR")])
+top
+```
+
+### Save Results
 
 ```{r}
 write.csv(genes4h_sort, "results/GSE189984/genes4h.csv")
@@ -296,141 +329,4 @@ print(paste("Number of significant genes when treated after 48h:", c48[,1]))
 print(paste("Fraction of up-regulated genes when treated after 48h:", (c48up / c48)[,1]))
 ```
 
-
-#### Number of genes that only become significant after 24h
-In the paper they mention that only after 24h of treatment, 995 genes become significantly expressed.
-
-We count:
-
-```{r}
-at_24h = sig_counts["treatmentVitD + time24h:treatmentVitD + time4h:treatmentVitD"]
-at_4h = sig_counts["treatmentVitD + time4h:treatmentVitD"]
-
-at_24h - at_4h
-```
-
-#### NOD2
-
-According to this paper (*Epigenome-wide effects of vitamin D and their impact on the transcriptome of human monocytes involve CTCF*),
-expression of this gene ENSG00000167207 (NOD2), is only affected after 24h .
-
-Evaluate this.
-
-```{r}
-gene = "ENSG00000167207"
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-```
-Indeed, only significant after 24h of treatment.
-
-#### HTT
-HTT: ENSG00000197386
-
-Should become significant after 4h of treatment.
-
-```{r}
-gene = "ENSG00000197386"
-
-
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-```
-Indeed, only significant after 4h of treatment.
-
- 
-#### THBD
-
-Significant gene from the GSE5145 microarray dataset.
-
-- THBD: ENSG00000178726
-- PEAK1: 
-
-```{r}
-
-
-gene <- symbol2ensembl("THBD")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-
-gene <- symbol2ensembl("PEAK1")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-
-gene <- symbol2ensembl("SULT1C2")
-gene
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-
-```
-
-### Comparisons
-#### With microarray data
-
-```{r}
-# go over all the genes from the microarray dataset.
-# TODO: get the significant genes
-
-counts <- 0
-
-for (symbol in df$Gene.symbol) {
-  id <- symbol2ensembl(symbol)
-  
-  if (!(id %in% rownames(genes24h))) {
-    next
-  }
-  
-  if(genes24h[id, ]$FDR < 0.05) {
-    counts <- counts + 1
-  }
-}
-
-counts
-```
-
-#### With other RNAseq dataset
-
-```{r}
-# go over all the genes from the microarray dataset.
-# TODO: get the significant genes
-
-counts <- 0
-
-for (gene in rownames(result)) {
-
-  if (!(gene %in% rownames(genes24h))) {
-    next
-  }
-  
-  if(genes24h[gene, ]$FDR < 0.05) {
-    counts <- counts + 1
-    print(gene)
-  }
-}
-
-counts
-```
-
-## Gene Set Analysis
-
-## Write Data for Omics Comparison
-
-The results of the gene Set analysis are written out for later comparisons.
-
-```{r}
-
-```
 
