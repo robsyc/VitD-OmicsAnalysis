@@ -1,8 +1,8 @@
----
-output:
-  pdf_document: default
-  html_document: default
----
+```{r setup, include=FALSE} 
+# disable warnings & mes
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
 # RNAseq Data - GSE69284
 
 ## General info
@@ -13,7 +13,9 @@ This dataset (GSE69284) was generated in 2016 and aimed to identify genes regula
 - Platform used: Illumina NextSeq500
 
 ## Quality control
+
 A MultiQC quality control was performed and mapping statistics are provided through the kallisto log output.
+The MultiQC output files are attached to the submission of this project.
 
 ## Preprocessing RNA-seq data
 
@@ -56,7 +58,7 @@ preprocess_statistics <- read.csv("stats/RNAseq/GSE69284/preprocess.tsv",
 preprocess_statistics
 ```
 
-## Downstream Analysis
+## Preparation
 
 ### Loading Libraries
 
@@ -74,7 +76,7 @@ library(edgeR)
 library(biomaRt)
 ```
 
-### Pseudo count table
+### Creating Pseudo count table
 
 Kallisto transcript mapping was performed to generate a pseudo-count table.
 These pseudo-counts are transcript-level counts and need to be summerized into gene-level counts.
@@ -96,6 +98,7 @@ tx2geneGtf <- dplyr::select(data, ensembl_transcript_id, ensembl_gene_id)
 # maps transcript -> gene
 tx2geneGtf <- rename(tx2geneGtf, TXNAME = ensembl_transcript_id)
 tx2geneGtf <- rename(tx2geneGtf, GENEID = ensembl_gene_id)
+
 head(tx2geneGtf)
 ```
 
@@ -130,7 +133,7 @@ sum(dups)
 
 As the sum is 0 there are no duplicate gene counts.
 
-#### Annotation
+### Annotation
 
 General sample annotation file was provided.  
 A case-control study was performed with 3 different treatment groups (2.5, 4, and 24 hour exposure) in the THP-1 cell line. The treatment time will be added as a factor during statistical analysis.
@@ -159,11 +162,13 @@ Check if the colnames match up in order with the annotation data.
 rownames(annotation) == colnames(txi$counts)
 ```
 
-## EdgeR Analysis
+## EdgeR Statistical Analysis
 
 ### Normalisation
 
 As we're working with *pseudocounts* (summerized gene counts from transcript counts), we need to add extra bias correction offsets (based on average transcript length) to make the data fit for EdgeR gene-level analysis.
+
+Note that this also adds library size based normalisation factors in these offsets.
 
 ```{r}
 ## Make tpm values compatible with edgeR
@@ -177,6 +182,7 @@ normCts <- cts/normMat
 # Computing effective library sizes from scaled counts, to account for
 # composition biases between samples.
 eff.lib <- calcNormFactors(normCts) * colSums(normCts)
+
 # Combining effective library sizes with the length factors, and calculating
 # offsets for a log-link GLM.
 normMat <- sweep(normMat, 2, eff.lib, "*")
@@ -192,13 +198,22 @@ dge <- scaleOffset(dge, normMat)
 
 ### Design Matrix
 
+In formula-form this model takes following form (we will use this when constructing the contrast tests):
+
+$$
+\eta_{ig} = \beta_0 + \beta_{VitD} x_{VitD,i} \\
++ \beta_{time4h} x_{time4h,i} + \beta_\text{VitD:time4h} x_{VitD,i}x_{time4h,i} \\
++ \beta_{time24h} x_{time24h,i} + \beta_\text{VitD:time24h} x_{VitD,i}x_{time24h,i}
+$$
+
 ```{r}
 design <- model.matrix(~time * treatment, annotation)
 rownames(design) <- colnames(dge)
-design
 ```
 
 ### Filtering
+
+Filtering is performed with the default `filterByExpr()` function of the EdgeR package.
 
 ```{r}
 keep <- filterByExpr(dge,design)
@@ -208,29 +223,29 @@ dge <- dge[keep, , keep.lib.sizes=FALSE]
 
 ### Data exploration
 
-MDS plot
+To explore the data we create an MDS plot.
+
+There is also clearly a difference between the EtOH and VitD treated samples for the same duration, showing the effect of VitD on gene expression.
+
+The time effect within a treatment seems stronger for VitD treated samples and not really meaningful for EtOH treated samples as most are clustered together regardless of treatment duration.
 
 ```{r}
 limma::plotMDS(dge,labels=paste(annotation$treatment,annotation$time,sep=" - "), 
                col=as.double(annotation$treatment))
 ```
 
-Observations:
-- maybe no time effect for Ethanol treated samples? (expected)
-- time effect for VitD treated samples (expected)
-
-
 ### Estimate dispersion
+
+The dispersion is estimated and a genewise biological coefficient of variation (BCV) plot is generated.
 
 ```{r}
 dge <- estimateDisp(dge, design)  
 plotBCV(dge)
 ```
 
-Looks OK? -> TODO: why
-
 ### Fit quasi-negative binomial model
 
+A quasi-negative binomial model is fitted, and a QQ-plot is generated to assess the goodness of fit.
 
 ```{r}
 fit <- glmQLFit(dge,design)
@@ -250,10 +265,9 @@ L <- msqrob2::makeContrast(
       "time4h = 0",
       "time24h = 0"),
     parameterNames = colnames(design))
-L
 ```
 
-Perform Contrast Tests
+Contrast tests are performed and the number of significant values (after multiple testing correction using FDR) is determined. 
 
 ```{r}
 testsF <- apply(L, 2, function(fit,contrast) 
@@ -263,26 +277,58 @@ testsF <- apply(L, 2, function(fit,contrast)
 topTablesF <- lapply(testsF, topTags, n=nrow(dge))
 
 sig_counts <- sapply(topTablesF, function(x) sum(x$table$FDR< 0.05))
-sig_counts
+
+knitr::kable(sig_counts, format="latex")
 ```
 
-`time4h` and `time24h` capture the contrasts comparing the time effect on non-treated cells, there shouldn't really be a time effect, which is what is seen by the fact that not a lot of significant genes were found for these contrasts.
+```{r}
+genes2.5h <- topTablesF$treatmentVitD$table
+genes4h <- topTablesF$`treatmentVitD + time4h:treatmentVitD`$table
+genes24h <- topTablesF$`treatmentVitD + time24h:treatmentVitD`$table
+```
 
-Similar to the conclusions on the original paper, there is a considerate time effect on the treatment,
-in the contrast ` there is a lot of expressed genes compared to `treatmentVitD` which only captures the contrast comparing 2.5h treated cells vs 2.5h non-treated cells.
+#### A small note on these contrasts
+
+`time4h = 0` and `time24h = 0` capture the contrasts comparing the time effect on non-treated cells, contrasting the expression at the earliest time point compared to the expression at time4h and time24h respectfully.
+There shouldn't really be a time effect -- as we don't expect Ethanol to introduce much DE -- , which is what is seen by the fact that not a lot of significant genes were found for these contrasts.
+
+When you test for the contrast `treatmentVitD = 0` you test for the genes that show DE when
+treated with VitD for 2.5h compared to EtOh (non-treated) samples for 2.5h.
+
+This contrast is based on the following derivation of the logFC between treated and non-treated samples at 2.5h.
+$$
+\log_2\text{FC}^\text{2.5h}_\text{VitD - EtOH} = \beta_{VitD}
+$$
+
+When you test for the contrast `treatmentVitD + time4h:treatmentVitD = 0`, you test for genes that show significant DE as result of the 24h VitD treatment.
+Similar explanation holds for the `treatmentVitD + time24h:treatmentVitD = 0` contrast test.
+
+$$
+\log_2\text{FC}^\text{24h}_\text{VitD - EtOH} = \beta_{VitD} + \beta_\text{VitD:24h}
+$$
+
+$$
+\log_2\text{FC}^\text{4h}_\text{VitD - EtOH} = \beta_{VitD} + \beta_\text{VitD:4h}
+$$
+
+Similar to the conclusions on the original paper the data originates from, there is a considerate time effect on the treatment.
 
 ### Volcano Plots
 
 ```{r}
 library(ggplot2)
-for (i in 1:ncol(L))
-{
-   volcano<- ggplot(topTablesF[[i]]$table, 
-                    aes(x=logFC,y=-log10(PValue),color=FDR < 0.05)) 
-   + geom_point() + scale_color_manual(values=c("black","red")) 
-   + ggtitle(paste("contrast",names(topTablesF)[i]))
-print(volcano)
-}
+
+volcanos <- lapply(topTablesF, function(x)
+    ggplot(x$table, aes(x=logFC,y=-log10(PValue), color=FDR < 0.05)) +
+       geom_point() +
+       scale_color_manual(values=c("black","red")))
+
+
+for (i in 1:ncol(L)) 
+    volcanos[[i]] <- volcanos[[i]] +
+    ggtitle(paste("contrast",names(topTablesF)[i]))
+
+volcanos
 ```
 
 ### Histograms of P-values
@@ -300,13 +346,22 @@ for (i in 1:ncol(L))
 histsP
 ```
 
-### Save Results
+### MA plots
+
+Significant DE between non-treated and treated cells at 24h time point.
 
 ```{r}
-genes2.5h <- topTablesF$treatmentVitD$table
-genes4h <- topTablesF$`treatmentVitD + time4h:treatmentVitD`$table
-genes24h <- topTablesF$`treatmentVitD + time24h:treatmentVitD`$table
+with(genes24h,plot(logCPM,logFC,pch=16,cex=0.2))
+# MAplot: all data points
+with(genes24h,points(logCPM[FDR<0.05],logFC[FDR<0.05],pch=16,col="red",cex=0.6))
+# MA-plot: significant loci
+abline(0,0)
+
 ```
+
+### Save Results
+
+
 
 Add gene symbols:
 
@@ -351,37 +406,23 @@ symbol2ensembl = function(x) {
 #### Paper result: time effect of treatment
 In the paper they mention a few genes that only express after a certain treatment length.
 
-
-#### NOD2
-
 According to this paper (*Epigenome-wide effects of vitamin D and their impact on the transcriptome of human monocytes involve CTCF*),
 expression of this gene (NOD2), is only affected after 24h.
 
-Evaluate this.
+Similarly HTT should become significant after 4h of treatment according to the paper results.
 
 ```{r}
-gene <- symbol2ensembl("NOD2")
+gene1 <- symbol2ensembl("NOD2")
+gene2 <- symbol2ensembl("HTT")
 
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
+res_fdr <- data.frame(t2.5h = genes2.5h[c(gene1, gene2),]$FDR,
+                  t4h = genes4h[c(gene1, gene2),]$FDR,
+                  t24h = genes24h[c(gene1, gene2),]$FDR, row.names=c("NOD2", "HTT"))
+
+knitr::kable(t(res_fdr), format="latex")
 ```
 
-Indeed, only somewhat significant after 24h of treatment.
-
-#### HTT
-
-Should become significant after 4h of treatment according to the paper results.
-
-```{r}
-gene <- symbol2ensembl("HTT")
-
-genes2.5h[gene,]$FDR
-genes4h[gene,]$FDR
-genes24h[gene, ]$FDR
-```
-
-Indeed, only somewhat significant after 4h of treatment.
+Indeed, this is also confirmed by our results.
 
 ### Gene Set Analysis
 
@@ -456,12 +497,13 @@ for (idx in 1:3) {
 
     # filter out NA values
 
-    res <- kegga(de=genes_sort$entrez_gene_id,
+    res <- goana(de=genes_sort$entrez_gene_id,
                  universe = univ$entrez_gene_id,
-                 species.KEGG="hsa", trend=genes_sort$transcript_length)
+                 species ="Hs", trend=genes_sort$transcript_length)
     res <- res[order(res$N),]
     
-    res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")
+    res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")`
+
     print(head(res[order(res$DE, decreasing=TRUE),]))
     
     write.csv(res, paste("results/GSE69284/gsa_", idx, ".csv", sep=""))

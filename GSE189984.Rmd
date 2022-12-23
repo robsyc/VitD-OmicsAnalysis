@@ -8,7 +8,7 @@ This dataset was generated in 2022 and aimed to identify genes regulated by Vit 
 - Single/paired end sequencing: single end sequencing
 - Platform used: Illumina NextSeq 500
 
-Due to time constraints and HPC downtime, normalized count tables already mapped to a genome were used instead of aligning the reads ourselves.
+> Due to time constraints and HPC downtime, normalized count tables already mapped to a genome were used instead of aligning the reads ourselves.
 
 The orginal paper by Hanel & Carlberg (2022) includes some general information on quality control and read mapping: Reads were aligned to the reference genome (version GRCh38) with Ensembl annotation (version 103) by using default settings of the nf-core/rnaseq STAR-Salmon pipeline (version 3.0). Ensembl gene identifiers were annotated with gene symbol, description, genomic location and biotype by accessing the Ensembl database (version 104) via the R package BiomaRt (version 2.46.0). Ensembl gene identifiers missing HGNC gene symbol annotation, Entrez ID, genomic location information or being mitochondrially encoded were removed from the data sets. When a gene name appeared more than once, the entry with the highest average gene counts was kept. Read counts were normalized for differences in library size to counts per million (CPM). Genes with very low expression were filtered out by applying the function FilterByExpr(), in order to mitigate the multiple testing problem and to not interfere with the statistical approximations of the EdgeRpipeline. This requirement was fulfilled by 12,305 genes. After filtering, library sizes were recomputed and trimmed mean of M-value normalization was applied.
 
@@ -73,7 +73,7 @@ annotation <- data.frame(
 head(annotation)
 ```
 
-## Processing
+## EdgeR Statistical Analysis
 
 An EdgeR object is generated with treatment as a grouping factor.
 
@@ -84,14 +84,14 @@ head(dge$sample)
 
 Some differences in library size are observed, this will be accounted for during normalization.
 
-### Filtering
+### Design Matrix
 
-Filtering is performed with the default `filterByExpr()` function of the EdgeR package.
+A design matrix is generated, taking into account treatment and treatment time.
 
 ```{r}
-keep <- filterByExpr(dge, design)
-table(keep)
-dge <- dge[keep, , keep.lib.sizes = FALSE]
+design <- model.matrix(~ treatment * time, annotation)
+rownames(design) <- colnames(dge)
+data.frame(head(design))
 ```
 
 ### Normalisation
@@ -101,6 +101,16 @@ Normalization is performed with the default `calcNormFactors()` function of the 
 ```{r}
 dge <- calcNormFactors(dge)
 dge$samples
+```
+
+### Filtering
+
+Filtering is performed with the default `filterByExpr()` function of the EdgeR package.
+
+```{r}
+keep <- filterByExpr(dge, design)
+table(keep)
+dge <- dge[keep, , keep.lib.sizes = FALSE]
 ```
 
 ### Data Exploration
@@ -114,17 +124,6 @@ limma::plotMDS(
   col = as.double(annotation$treatment))
 ```
 
-## Analysis
-
-### Design Matrix
-
-A design matrix is generated, taking into account treatment and treatment time.
-
-```{r}
-design <- model.matrix(~ treatment * time, annotation)
-rownames(design) <- colnames(dge)
-data.frame(head(design))
-```
 
 ### Estimate Dispersion
 
@@ -177,6 +176,14 @@ sig_counts <- sapply(topTablesF, function(x) sum(x$table$FDR < 0.05))
 sig_counts
 ```
 
+
+```{r}
+genes4h <- topTablesF[["treatmentX125D"]][["table"]]
+genes8h <- topTablesF[["treatmentX125D + treatmentX125D:time08h"]][["table"]]
+genes24h <- topTablesF[["treatmentX125D + treatmentX125D:time24h"]][["table"]]
+genes48h <- topTablesF[["treatmentX125D + treatmentX125D:time48h"]][["table"]]
+```
+
 ### Assesment of Significance
 
 Volcano plots are generated to assess significance and general direction of differential expression. Vit D treatment seems to stimulate gene expression, and the time effect seems to play quite and important role (even in the absence of Vit D treatment).
@@ -184,7 +191,10 @@ Volcano plots are generated to assess significance and general direction of diff
 ```{r}
 for (i in 1:ncol(L)){
   volcano <- ggplot(topTablesF[[i]]$table, 
-                    aes(x = logFC, y = -log10(PValue), color = FDR < 0.05)) + geom_point() + scale_color_manual(values = c("black","red")) + ggtitle(paste("contrast", names(topTablesF)[i]))
+                    aes(x = logFC, y = -log10(PValue), color = FDR < 0.05)) +
+      geom_point() +
+      scale_color_manual(values = c("black","red")) +
+      ggtitle(paste("contrast", names(topTablesF)[i]))
   print(volcano)
 }
 ```
@@ -204,14 +214,19 @@ for (i in 1:ncol(L))
 histsP
 ```
 
-### Save Results
+### MA plots
+
+Significant DE between non-treated and treated cells at 24h time point.
 
 ```{r}
-genes4h <- topTablesF[["treatmentX125D"]][["table"]]
-genes8h <- topTablesF[["treatmentX125D + treatmentX125D:time08h"]][["table"]]
-genes24h <- topTablesF[["treatmentX125D + treatmentX125D:time24h"]][["table"]]
-genes48h <- topTablesF[["treatmentX125D + treatmentX125D:time48h"]][["table"]]
+with(genes24h,plot(logCPM,logFC,pch=16,cex=0.2))
+# MAplot: all data points
+with(genes24h,points(logCPM[FDR<0.05],logFC[FDR<0.05],pch=16,col="red",cex=0.6))
+# MA-plot: significant loci
+abline(0,0)
 ```
+
+### Save Results
 
 Add gene symbols:
 

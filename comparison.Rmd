@@ -46,7 +46,7 @@ gse5145 <- gse5145[!is.na(gse5145$Gene.symbol),]
 gse145483 <- gse145483[!is.na(gse145483$Gene),]
 
 # List of items
-x <- list(gse5145_TMA = gse5145$Gene.symbol, gse69284_RNAseq = gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol, gse145483_MMA = gse145483[gse145483$adj.P.Val < 0.05,]$Gene, gse189984_RNAseq = gse189984_48[gse189984_48$FDR < 0.05,]$gene_symbol)
+x <- list(gse5145_TMA = gse5145$Gene.symbol, gse69284_RNAseq = gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol, gse145483_MMA = gse145483[gse145483$adj.P.Val < 0.05,]$Gene, gse189984_RNAseq = gse189984_24[gse189984_24$FDR < 0.05,]$gene_symbol)
 
 ggvenn(x)
 ```
@@ -69,7 +69,7 @@ Same cell types -> we expect functions associated with Vit D for this specific c
 
 ```{r}
 common <- Reduce(intersect, list(gse145483[gse145483$adj.P.Val < 0.05,]$Gene,
-                       gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol))
+                                 gse69284_24h[gse69284_24h$FDR < 0.05,]$gene_symbol))
 ```
 
 Perform GSA on this common set of genes:
@@ -79,7 +79,9 @@ library(limma)
 
 GRCh38 <-  useEnsembl(biomart="genes", host="https://www.ensembl.org",
                       dataset="hsapiens_gene_ensembl")
+```
 
+```{r}
 # attributes
 atr <- listAttributes(GRCh38)
 idmap <- getBM(attributes = c('entrezgene_id',
@@ -90,8 +92,9 @@ idmap <- idmap[!duplicated(idmap$external_gene_name),]
 idmap <- idmap[idmap$external_gene_name %in% common,]
 entrez <- idmap$entrezgene_id
 
+
 res <- kegga(de=entrez,
-             species.KEGG="hsa")
+             species ="Hs")
 res <- res[order(res$N),]
     
 res$FDR.DE <- p.adjust(res$P.DE, n=nrow(res), method="BH")
